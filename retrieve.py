@@ -1,8 +1,5 @@
 import pinecone
 import openai
-import json
-
-
 
 
 # Set up API keys and configurations
