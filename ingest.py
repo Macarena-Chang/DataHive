@@ -32,28 +32,33 @@ file_unique_id = str(uuid.uuid4())
 # Initialize Pinecone vector store
 pinecone_store = pinecone.Index(pinecone_index_name)
 
-# Create a mapping between vector IDs and original text chunks
+# create a mapping between vector ids and original text chunks
 id_to_text_mapping = {}
 
-# Store the embeddings of the chunks with their unique IDs in Pinecone
+# store embeddings of the chunks with their unique ids in pinecone
 for idx, chunk in enumerate(my_chunks):
-    # Generate a unique ID for each chunk
+    # generate a unique ID for each chunk
     chunk_unique_id = f"{file_unique_id}_{idx}"
 
-    # Get the embedding for the chunk using OpenAI API
+    # get the embedding for the chunk with openai
     response = openai.Embedding.create(input=chunk, model="text-embedding-ada-002")
     embedding = response["data"][0]["embedding"]
 
-    # Store the embedding in Pinecone with the unique ID
-    pinecone_store.upsert(vectors=[{'id': chunk_unique_id, 'values': embedding}])
+    # create metadata for the chunk
+    metadata = {
+        'chunk': idx,
+        'text': chunk,
+        'file_id': file_unique_id
+    }
 
-    # Add the unique ID and corresponding original text chunk to the mapping
-    id_to_text_mapping[chunk_unique_id] = chunk
+    # add the unique id and corresponding metadata to the mapping
+    id_to_text_mapping[chunk_unique_id] = metadata
 
+    # store the embedding and metadata in Pinecone using zip
+    pinecone_store.upsert(vectors=zip([chunk_unique_id], [embedding], [metadata]))
 
-# Save the id_to_text_mapping to a JSON file
+# save the id_to_text_mapping to a JSON file
 with open(f"{file_unique_id}.json", "w") as outfile:
     json.dump(id_to_text_mapping, outfile)
 
-# print(id_to_text_mapping)
-
+print(id_to_text_mapping)
