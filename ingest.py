@@ -3,17 +3,21 @@ import pinecone
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import uuid
 import json
+import yaml
 
+# Read configurations from YAML file
+with open("config.yaml", "r") as config_file:
+    config = yaml.safe_load(config_file)
 
 # Set up API keys and configurations
-openai_key = " "
-pinecone_api_key = " "
-pinecone_environment = " "
-pinecone_index_name = " "
+openai_key = config["openai_key"]
+pinecone_api_key = config["pinecone_api_key"]
+pinecone_environment = config["pinecone_environment"]
+pinecone_index_name = config["pinecone_index_name"]
 
 # Configure OpenAI and Pinecone
 openai.api_key = openai_key
-pinecone.init(api_key=pinecone_api_key, environment= pinecone_environment)
+pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
 # Read text from a txt file and save it to a variable called "my_string"
 file_path = "Python-Data-Structures.txt"
