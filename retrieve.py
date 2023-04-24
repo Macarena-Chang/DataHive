@@ -35,6 +35,7 @@ def generate_summary(prompt: str):
 
 
 def search_and_chat(search_query: str) -> list:
+#def search_and_chat(search_query: str) -> tuple:
     config = load_config("config.yaml")
     openai.api_key = config["openai_key"]
     pinecone.init(api_key=config["pinecone_api_key"], environment=config["pinecone_environment"])
@@ -60,6 +61,7 @@ def search_and_chat(search_query: str) -> list:
     summary = generate_summary(prompt)
     
     print(summary)
+    # return summary, response_texts
     return [summary]  # Wrap summary in a list
 
 

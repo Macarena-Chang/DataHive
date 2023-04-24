@@ -59,9 +59,9 @@ def extract_text_from_docx(file_path: str) -> str:
     return text
 
 
-# def extract_text_from_doc(file_path: str) -> str:
-#    text = textract.process(file_path).decode('utf-8')
-#    return text
+def extract_text_from_doc(file_path: str) -> str:
+    text = textract.process(file_path).decode('utf-8')
+    return text
 
 
 def ingest_file(file_path: str) -> dict:
@@ -79,7 +79,7 @@ def ingest_file(file_path: str) -> dict:
     text_extraction_functions = {
         'pdf': extract_text_from_pdf,
         'docx': extract_text_from_docx,
-       # 'doc': extract_text_from_doc,
+        'doc': extract_text_from_doc,
         'txt': lambda path: open(path, 'r').read()
     }
 
