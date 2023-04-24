@@ -24,6 +24,11 @@ def get_response_texts(response):
 
 
 def generate_summary(prompt: str):
+    # Replace triple backticks with <pre><code> and </code></pre> tags
+    # prompt = prompt.replace("```", "<pre><code>")
+    # prompt = prompt.replace("```", "</code></pre>")
+
+
     response_chat = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -35,7 +40,6 @@ def generate_summary(prompt: str):
 
 
 def search_and_chat(search_query: str) -> list:
-#def search_and_chat(search_query: str) -> tuple:
     config = load_config("config.yaml")
     openai.api_key = config["openai_key"]
     pinecone.init(api_key=config["pinecone_api_key"], environment=config["pinecone_environment"])
@@ -52,16 +56,13 @@ def search_and_chat(search_query: str) -> list:
 
     prompt = f"""
     I have gathered some relevant information to help answer your question. Here is the information:
-
     {combined_text}
-
-    Based on this information, provide a concise summary for topic {search_query}
+    Based on this information, provide a detailed summary for topic {search_query}
     """
 
     summary = generate_summary(prompt)
     
     print(summary)
-    # return summary, response_texts
     return [summary]  # Wrap summary in a list
 
 

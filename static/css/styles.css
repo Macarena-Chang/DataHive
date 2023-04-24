@@ -60,7 +60,32 @@ ul {
 
 
 
-
+pre {
+    white-space: pre-wrap; /* Allows text to wrap within the pre element */
+    word-wrap: break-word; /* Breaks long words to fit the container width */
+    background-color: #1e1e1e;
+    color: #ddd;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    position: relative;
+  }
+  
+  /* Add styles for the copy button */
+  .copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background-color: #4caf50;
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+  }
 
 
 

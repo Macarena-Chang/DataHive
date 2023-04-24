@@ -36,12 +36,12 @@
                 <button type="submit">Search</button>
             </form>
 
-            <h1>Search Results</h1>
-            <ul>
+        {% if results %}
+        <h1>Search Results</h1>
             {% for result in results %}
-                <li>{{ result }}</li>
+             <pre>{{ result }}</pre>
             {% endfor %}
-            </ul>
+        {% endif %}
         </div>
     </div>
 </body>
