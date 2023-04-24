@@ -133,3 +133,5 @@ uploads/
 559aaa4b-a172-44bd-b42d-7234a0c17b2a.json
 
 config.yaml
+
+*.json

@@ -43,6 +43,8 @@ def search_and_chat(search_query: str) -> list:
 
     query_embeds = get_embedding(search_query)
     response = query_pinecone(index, query_embeds)
+    print(response)
+    
     response_texts = get_response_texts(response)
 
     combined_text = " ".join(response_texts)
@@ -56,9 +58,10 @@ def search_and_chat(search_query: str) -> list:
     """
 
     summary = generate_summary(prompt)
+    
     print(summary)
     return [summary]  # Wrap summary in a list
 
 
 # definir search query
-# search_and_chat("tuples");
+# search_and_chat("javaScript");

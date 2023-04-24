@@ -4,6 +4,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import uuid
 import json
 import yaml
+import PyPDF2
+import docx
+import textract
 
 
 def load_config(file_path: str) -> dict:
@@ -37,6 +40,29 @@ def save_mapping_to_file(mapping: dict, file_name: str):
     with open(file_name, "w") as outfile:
         json.dump(mapping, outfile)
 
+def extract_text_from_pdf(file_path: str) -> str:
+    pdf_file = open(file_path, 'rb')
+    pdf_reader = PyPDF2.PdfReader(pdf_file)
+    numPages = len(pdf_reader.pages)
+    text = ''
+    for page_num in range (0, numPages):
+        text += pdf_reader.pages[page_num].extract_text() 
+    pdf_file.close()
+    return text
+
+
+def extract_text_from_docx(file_path: str) -> str:
+    doc = docx.Document(file_path)
+    text = ''
+    for paragraph in doc.paragraphs:
+        text += paragraph.text + '\n'
+    return text
+
+
+# def extract_text_from_doc(file_path: str) -> str:
+#    text = textract.process(file_path).decode('utf-8')
+#    return text
+
 
 def ingest_file(file_path: str) -> dict:
     config = load_config("config.yaml")
@@ -48,8 +74,16 @@ def ingest_file(file_path: str) -> dict:
     openai.api_key = openai_key
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
-    with open(file_path, 'r') as file:
-        file_content = file.read()
+
+    file_extension = file_path.lower().split('.')[-1]
+    text_extraction_functions = {
+        'pdf': extract_text_from_pdf,
+        'docx': extract_text_from_docx,
+       # 'doc': extract_text_from_doc,
+        'txt': lambda path: open(path, 'r').read()
+    }
+
+    file_content = text_extraction_functions.get(file_extension)(file_path)
     
     text = file_content.replace('\n', ' ').replace('\\n', ' ')
     chunks = split_text_data(text)
