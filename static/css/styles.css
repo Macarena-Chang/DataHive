@@ -59,7 +59,10 @@ ul {
 }
 
 
-
+.wrap{
+    white-space: pre-wrap; /* Allows text to wrap within the pre element */
+    word-wrap: break-word; /* Breaks long words to fit the container width */
+}
 pre {
     white-space: pre-wrap; /* Allows text to wrap within the pre element */
     word-wrap: break-word; /* Breaks long words to fit the container width */
