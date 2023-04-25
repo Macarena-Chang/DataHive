@@ -87,4 +87,4 @@ def search_and_chat(search_query: str) -> list:
 
 
 # definir search query
-# search_and_chat("javaScript");
+# search_and_chat("Tuples and Sequences with code examples");

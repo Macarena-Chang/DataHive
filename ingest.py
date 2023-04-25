@@ -7,23 +7,24 @@ import yaml
 import docx
 import nltk
 import zipfile
+from xml.etree import ElementTree as ET
+import re
 from nltk.tokenize import TextTilingTokenizer
-
-
 from pdfminer.high_level import extract_text
-#nltk.download("stopwords")
-#nltk.download("punkt")
+# nltk.download("stopwords")
+# nltk.download("punkt")
+
 
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
         return yaml.safe_load(config_file)
 
 
-# If text tiling fails 
-# in that case RecursiveCharacterTextSplitter will be used instead of Text Tiling
-def split_text_data(text: str) -> list:
-    # initialize TextTilingTokenizer - default parameters
-    ttt = TextTilingTokenizer()
+# 3200 is aprox 1042 tokens
+# Text Tiling
+def split_text_data(text: str, max_chars: int = 3200) -> list:
+    # initialize TextTilingTokenizer
+    ttt = TextTilingTokenizer(k=2)
 
     # check if text too short
     if len(text) < ttt.w * 2:  # w = default block size (usually 50)
@@ -45,21 +46,37 @@ def split_text_data(text: str) -> list:
         if len(chunks) <= 1:
             raise ValueError("Too few chunks")
 
+      # Split chunks that exceed the maximum character limit
+        i = 0
+        while i < len(chunks):
+            chunk = chunks[i]
+            if len(chunk) > max_chars:
+                # split the chunk into smaller subchunks
+                num_subchunks = (len(chunk) // max_chars) + 1
+                subchunks = [
+                    chunk[j * max_chars:(j + 1) * max_chars] for j in range(num_subchunks)]
+                chunks.pop(i)
+                for subchunk in reversed(subchunks):
+                    chunks.insert(i, subchunk)
+            i += 1
+
     except ValueError as e:
         print(f"TextTiling exception: {e}")
 
         # Fallback to RecursiveCharacterTextSplitter
-        char_text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        char_text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000, chunk_overlap=200)
         chunks = char_text_splitter.split_text(text)
         print("RecursiveCharacterTextSplitter")
         print(chunks)
     return chunks
-    
+
 
 def generate_embeddings(chunks: list) -> list:
     embeddings = []
     for chunk in chunks:
-        response = openai.Embedding.create(input=chunk, model="text-embedding-ada-002")
+        response = openai.Embedding.create(
+            input=chunk, model="text-embedding-ada-002")
         embeddings.append(response["data"][0]["embedding"])
     return embeddings
 
@@ -68,9 +85,11 @@ def store_embeddings(chunks: list, embeddings: list, file_unique_id: str, pineco
     id_to_text_mapping = {}
     for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
         chunk_unique_id = f"{file_unique_id}_{idx}"
-        metadata = {'chunk': idx, 'text': chunk, 'file_id': file_unique_id, 'file_name':file_name}
+        metadata = {'chunk': idx, 'text': chunk,
+                    'file_id': file_unique_id, 'file_name': file_name}
         id_to_text_mapping[chunk_unique_id] = metadata
-        pinecone_store.upsert(vectors=zip([chunk_unique_id], [embedding], [metadata]))
+        pinecone_store.upsert(vectors=zip(
+            [chunk_unique_id], [embedding], [metadata]))
     return id_to_text_mapping
 
 
@@ -78,23 +97,35 @@ def save_mapping_to_file(mapping: dict, file_name: str):
     with open(file_name, "w") as outfile:
         json.dump(mapping, outfile)
 
+ # Extract text using pdfminer six
+
 
 def extract_text_from_pdf(file_path: str) -> str:
-    # Extract text using pdfminer
     text = extract_text(file_path)
-    # Save extracted text to a TXT file
-    txt_file_path = file_path.replace('.pdf', '.txt')
-    with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
-        txt_file.write(text)
-
     return text
 
 
+# .docx file is a ZIP archive containing multiple files. Opening it as a ZIP allows us to access the xml file that contains the  text
 def extract_text_from_docx(file_path: str) -> str:
-    doc = docx.Document(file_path)
-    text = ''
-    for paragraph in doc.paragraphs:
-        text += paragraph.text + '\n'
+    # Open the .docx file as a ZIP archive
+    with zipfile.ZipFile(file_path, 'r') as z:
+        # Extract the 'word/document.xml' file
+        xml_content = z.read('word/document.xml').decode()
+
+        # Parse the XML content
+        tree = ET.fromstring(xml_content)
+
+        # Find all paragraph elements
+        paragraphs = tree.findall(
+            './/w:p', namespaces={'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'})
+
+        # Extract the text from the 'w:t' elements within each paragraph and join them with newline characters
+        text = '\n\n'.join(''.join(node.text for node in para.findall(
+            './/w:t', namespaces={'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'})) for para in paragraphs)
+
+        # Replace carriage returns and line feeds with newline characters
+        text = re.sub(r'\r|\f', '\n', text)
+
     return text
 
 
@@ -105,8 +136,6 @@ def extract_text_from_docx(file_path: str) -> str:
 
 
 def ingest_file(file_path: str) -> dict:
-#def ingest_file() -> dict:
-   # file_path = "text-tiling.pdf" 
     config = load_config("config.yaml")
 
     openai_key = config["openai_key"]
@@ -116,18 +145,16 @@ def ingest_file(file_path: str) -> dict:
     openai.api_key = openai_key
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
-
     file_extension = file_path.lower().split('.')[-1]
     text_extraction_functions = {
         'pdf': extract_text_from_pdf,
         'docx': extract_text_from_docx,
-       # 'doc': extract_text_from_doc,
+        # 'doc': extract_text_from_doc,
         'txt': lambda path: open(path, 'r').read()
     }
 
     file_content = text_extraction_functions.get(file_extension)(file_path)
-    
-    # text = file_content.replace('\n', ' ').replace('\\n', ' ')
+
     text = file_content
     chunks = split_text_data(text)
 
@@ -138,10 +165,11 @@ def ingest_file(file_path: str) -> dict:
 
     file_name = file_path
 
-    id_to_text_mapping = store_embeddings(chunks, embeddings, file_unique_id, pinecone_store, file_name)
+    id_to_text_mapping = store_embeddings(
+        chunks, embeddings, file_unique_id, pinecone_store, file_name)
 
     save_mapping_to_file(id_to_text_mapping, f"{file_unique_id}.json")
     return {"message": "File processed successfully.", "file_unique_id": file_unique_id}
 
-#result = ingest_file()
-#print(result)
+# result = ingest_file("Tutorial_python.pdf")
+# print(result)
