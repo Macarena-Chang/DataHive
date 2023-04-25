@@ -135,3 +135,9 @@ uploads/
 config.yaml
 
 *.json
+
+*.txt
+
+*.pdf
+
+*.docx
