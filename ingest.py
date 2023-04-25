@@ -78,34 +78,6 @@ def save_mapping_to_file(mapping: dict, file_name: str):
     with open(file_name, "w") as outfile:
         json.dump(mapping, outfile)
 
-""" def extract_text_from_pdf(file_path: str) -> str:
-    pdf_file = open(file_path, 'rb')
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
-    numPages = len(pdf_reader.pages)
-    text = ''
-    for page_num in range (0, numPages):
-        text += pdf_reader.pages[page_num].extract_text() 
-    pdf_file.close()
-     # Save extracted text to a TXT file
-    txt_file_path = file_path.replace('.pdf', '.txt')
-    with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
-        txt_file.write(text)
-    return text """
-
-""" def extract_text_from_pdf(file_path: str) -> str:
-    text = ''
-    with pdfplumber.open(file_path) as pdf:
-            length = len(pdf.pages)
-    print(f"Total number of Page is {length}.")  # find total pages
-    for i in range (0, length): 
-        text +=  pdf.pages[i].extract_text()
-        text += '\n'
-
-    # Save extracted text to a TXT file
-    txt_file_path = file_path.replace('.pdf', '.txt')
-    with open(txt_file_path, 'w', encoding='utf-8') as txt_file:
-     txt_file.write(text)
-    return text  """
 
 def extract_text_from_pdf(file_path: str) -> str:
     # Extract text using pdfminer
