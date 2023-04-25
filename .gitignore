@@ -136,8 +136,15 @@ config.yaml
 
 *.json
 
+<<<<<<< Updated upstream
 *.txt
 
 *.pdf
 
+=======
+*.pdf
+
+*.txt
+
+>>>>>>> Stashed changes
 *.docx
