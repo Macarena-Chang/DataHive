@@ -79,7 +79,7 @@ def search_and_chat(search_query: str) -> list:
 
     summary = generate_summary(prompt)
     formatted_summary = format_summary(summary)
-    
+    print(prompt)
     print(summary)
     print(formatted_summary)
     return [formatted_summary]
