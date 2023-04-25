@@ -66,48 +66,43 @@ ul {
 pre {
     white-space: pre-wrap; /* Allows text to wrap within the pre element */
     word-wrap: break-word; /* Breaks long words to fit the container width */
-    background-color: #1e1e1e;
+    background-color: #000000;
     color: #ddd;
     padding: 1rem;
     border-radius: 4px;
     margin-bottom: 1rem;
     position: relative;
+
+
   }
   
-  /* Add styles for the copy button */
-  .copy-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    background-color: #4caf50;
-    border: none;
-    color: white;
-    padding: 0.5rem 1rem;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 14px;
-    cursor: pointer;
+  .code{
+    font-family: Consolas,monaco,monospace; 
+    font-size: 12px;
   }
 
 
 
+  .code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #444;
+    padding: 2px 5px 2px 10px;
+    font-size: 0.8em;
+    color: #fff;
+  }
+  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  
+  .copy-btn {
+    background-color: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.8em;
+  }
+  
+  .copy-btn:hover {
+    color: #ccc;
+  }

@@ -24,11 +24,7 @@ def get_response_texts(response):
 
 
 def generate_summary(prompt: str):
-    # Replace triple backticks with <pre><code> and </code></pre> tags
-    # prompt = prompt.replace("```", "<pre><code>")
-    # prompt = prompt.replace("```", "</code></pre>")
-
-
+    
     response_chat = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -37,6 +33,27 @@ def generate_summary(prompt: str):
         ]
     )
     return response_chat.choices[0].message['content']
+
+# format summary to handle how code is displayed
+def format_summary(summary: str) -> str:
+    backtick_occurrences = summary.count("```")
+    formatted_summary = ""
+    start_position = 0
+
+    for i in range(backtick_occurrences):
+        end_position = summary.find("```", start_position)
+
+        if i % 2 == 0:
+            tag = '<div class="code-header"><button class="copy-btn">Copy</button></div><pre><code>'
+        else:
+            tag = "</code></pre>"
+
+
+        formatted_summary += summary[start_position:end_position] + tag
+        start_position = end_position + 3
+
+    formatted_summary += summary[start_position:]
+    return formatted_summary
 
 
 def search_and_chat(search_query: str) -> list:
@@ -61,9 +78,12 @@ def search_and_chat(search_query: str) -> list:
     """
 
     summary = generate_summary(prompt)
+    formatted_summary = format_summary(summary)
     
     print(summary)
-    return [summary]  # Wrap summary in a list
+    print(formatted_summary)
+    return [formatted_summary]
+   # return [summary]  # Wrap summary in a list
 
 
 # definir search query
