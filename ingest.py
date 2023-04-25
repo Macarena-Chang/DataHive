@@ -173,8 +173,8 @@ def ingest_files(file_paths: List[str]):
         save_mapping_to_file(id_to_text_mapping, f"{file_unique_id}.json")
     return {"message": "File processed successfully.", "file_unique_id": file_unique_id}
 
-file_paths = ['1.txt',  '2.docx','3.pdf']
+#file_paths = ['1.txt',  '2.docx','3.pdf']
 
-ingest_files(file_paths)
+#ingest_files(file_paths)
 
 
