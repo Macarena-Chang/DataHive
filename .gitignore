@@ -139,3 +139,5 @@ config.yaml
 *.txt
 
 *.pdf
+
+*.docx
