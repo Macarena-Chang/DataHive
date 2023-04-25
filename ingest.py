@@ -11,6 +11,7 @@ from xml.etree import ElementTree as ET
 import re
 from nltk.tokenize import TextTilingTokenizer
 from pdfminer.high_level import extract_text
+from typing import List
 # nltk.download("stopwords")
 # nltk.download("punkt")
 
@@ -135,7 +136,7 @@ def extract_text_from_docx(file_path: str) -> str:
  """
 
 
-def ingest_file(file_path: str) -> dict:
+def ingest_files(file_paths: List[str]):
     config = load_config("config.yaml")
 
     openai_key = config["openai_key"]
@@ -145,31 +146,35 @@ def ingest_file(file_path: str) -> dict:
     openai.api_key = openai_key
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
-    file_extension = file_path.lower().split('.')[-1]
+   
     text_extraction_functions = {
         'pdf': extract_text_from_pdf,
         'docx': extract_text_from_docx,
         # 'doc': extract_text_from_doc,
         'txt': lambda path: open(path, 'r').read()
     }
+    for file_path in file_paths:
+        file_extension = file_path.lower().split('.')[-1]
+        file_content = text_extraction_functions.get(file_extension)(file_path)
 
-    file_content = text_extraction_functions.get(file_extension)(file_path)
+        text = file_content
+        chunks = split_text_data(text)
 
-    text = file_content
-    chunks = split_text_data(text)
+        file_unique_id = str(uuid.uuid4())
+        pinecone_store = pinecone.Index(config["pinecone_index_name"])
 
-    file_unique_id = str(uuid.uuid4())
-    pinecone_store = pinecone.Index(config["pinecone_index_name"])
+        embeddings = generate_embeddings(chunks)
 
-    embeddings = generate_embeddings(chunks)
+        file_name = file_path
 
-    file_name = file_path
+        id_to_text_mapping = store_embeddings(
+            chunks, embeddings, file_unique_id, pinecone_store, file_name)
 
-    id_to_text_mapping = store_embeddings(
-        chunks, embeddings, file_unique_id, pinecone_store, file_name)
-
-    save_mapping_to_file(id_to_text_mapping, f"{file_unique_id}.json")
+        save_mapping_to_file(id_to_text_mapping, f"{file_unique_id}.json")
     return {"message": "File processed successfully.", "file_unique_id": file_unique_id}
 
-# result = ingest_file("Tutorial_python.pdf")
-# print(result)
+#file_paths = ['1.txt',  '2.docx','3.pdf']
+
+#ingest_files(file_paths)
+
+

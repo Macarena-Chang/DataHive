@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 import os
-from ingest import ingest_file
+from ingest import ingest_files
 from retrieve import search_and_chat
 
 app = Flask(__name__)
@@ -16,14 +16,21 @@ def home():
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
     message = None
+
     if request.method == 'POST':
-        uploaded_file = request.files['file']
-        if uploaded_file:
-            filename = secure_filename(uploaded_file.filename)
-            file_path = os.path.join('uploads', filename)
-            uploaded_file.save(file_path)
-            ingest_file(file_path)
-            message = "File uploaded and ingested successfully."
+        uploaded_files = request.files.getlist('files')
+        print(uploaded_files)
+        file_paths = []
+        for uploaded_file in uploaded_files:
+            if uploaded_file:
+                filename = secure_filename(uploaded_file.filename)
+                file_path = os.path.join('uploads', filename)
+                uploaded_file.save(file_path)
+                file_paths.append(file_path)
+
+        if file_paths:
+            ingest_files(file_paths)
+            message = "Files uploaded and ingested successfully."
     
     return render_template('index.html', message=message)
 
