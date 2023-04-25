@@ -25,7 +25,7 @@ def load_config(file_path: str) -> dict:
 # Text Tiling
 def split_text_data(text: str, max_chars: int = 3200) -> list:
     # initialize TextTilingTokenizer
-    ttt = TextTilingTokenizer(k=2)
+    ttt = TextTilingTokenizer()
 
     # check if text too short
     if len(text) < ttt.w * 2:  # w = default block size (usually 50)
