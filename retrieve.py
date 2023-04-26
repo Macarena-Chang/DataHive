@@ -1,12 +1,8 @@
 import pinecone
 import openai
-import yaml
+from dotenv import dotenv_values
 
-
-
-def load_config(file_path: str) -> dict:
-    with open(file_path, "r") as config_file:
-        return yaml.safe_load(config_file)
+config = dotenv_values(".env")
 
 
 def get_embedding(text: str, model: str = "text-embedding-ada-002"):
@@ -15,7 +11,8 @@ def get_embedding(text: str, model: str = "text-embedding-ada-002"):
 
 
 def query_pinecone(index, query_embedding, top_k=5, include_metadata=True):
-    response = index.query(query_embedding, top_k=top_k, include_metadata=include_metadata)
+    response = index.query(query_embedding, top_k=top_k,
+                           include_metadata=include_metadata)
     return response
 
 
@@ -24,7 +21,7 @@ def get_response_texts(response):
 
 
 def generate_summary(prompt: str):
-    
+
     response_chat = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -35,6 +32,8 @@ def generate_summary(prompt: str):
     return response_chat.choices[0].message['content']
 
 # format summary to handle how code is displayed
+
+
 def format_summary(summary: str) -> str:
     backtick_occurrences = summary.count("```")
     formatted_summary = ""
@@ -48,7 +47,6 @@ def format_summary(summary: str) -> str:
         else:
             tag = "</code></pre>"
 
-
         formatted_summary += summary[start_position:end_position] + tag
         start_position = end_position + 3
 
@@ -57,16 +55,16 @@ def format_summary(summary: str) -> str:
 
 
 def search_and_chat(search_query: str) -> list:
-    config = load_config("config.yaml")
-    openai.api_key = config["openai_key"]
-    pinecone.init(api_key=config["pinecone_api_key"], environment=config["pinecone_environment"])
+    openai.api_key = config["OPENAI_API_KEY"]
+    pinecone.init(api_key=config["PINECONE_API_KEY"],
+                  environment=config["PINECONE_ENVIRONMENT"])
 
-    index = pinecone.Index(config["pinecone_index_name"])
+    index = pinecone.Index(config["PINECONE_INDEX_NAME"])
 
     query_embeds = get_embedding(search_query)
     response = query_pinecone(index, query_embeds)
     print(response)
-    
+
     response_texts = get_response_texts(response)
 
     combined_text = " ".join(response_texts)

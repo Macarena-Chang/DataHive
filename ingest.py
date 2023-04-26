@@ -3,7 +3,6 @@ import pinecone
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import uuid
 import json
-import yaml
 import docx
 import nltk
 import zipfile
@@ -14,12 +13,9 @@ from pdfminer.high_level import extract_text
 from typing import List
 # nltk.download("stopwords")
 # nltk.download("punkt")
+from dotenv import dotenv_values
 
-
-def load_config(file_path: str) -> dict:
-    with open(file_path, "r") as config_file:
-        return yaml.safe_load(config_file)
-
+config = dotenv_values(".env")
 
 # 3200 is aprox 1042 tokens
 # Text Tiling
@@ -137,16 +133,13 @@ def extract_text_from_docx(file_path: str) -> str:
 
 
 def ingest_files(file_paths: List[str]):
-    config = load_config("config.yaml")
-
-    openai_key = config["openai_key"]
-    pinecone_api_key = config["pinecone_api_key"]
-    pinecone_environment = config["pinecone_environment"]
+    openai_key = config["OPENAI_API_KEY"]
+    pinecone_api_key = config["PINECONE_API_KEY"]
+    pinecone_environment = config["PINECONE_ENVIRONMENT"]
 
     openai.api_key = openai_key
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
-   
     text_extraction_functions = {
         'pdf': extract_text_from_pdf,
         'docx': extract_text_from_docx,
@@ -161,8 +154,7 @@ def ingest_files(file_paths: List[str]):
         chunks = split_text_data(text)
 
         file_unique_id = str(uuid.uuid4())
-        pinecone_store = pinecone.Index(config["pinecone_index_name"])
-
+        pinecone_store = config["PINECONE_INDEX_NAME"]
         embeddings = generate_embeddings(chunks)
 
         file_name = file_path
@@ -173,8 +165,6 @@ def ingest_files(file_paths: List[str]):
         save_mapping_to_file(id_to_text_mapping, f"{file_unique_id}.json")
     return {"message": "File processed successfully.", "file_unique_id": file_unique_id}
 
-#file_paths = ['1.txt',  '2.docx','3.pdf']
 
+#file_paths = ['demofile6-pythoninputoutput.txt']
 #ingest_files(file_paths)
-
-
