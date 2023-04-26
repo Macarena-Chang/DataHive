@@ -56,7 +56,7 @@ def format_summary(summary: str) -> str:
     return formatted_summary
 
 
-def search_and_chat(search_query: str) -> list:
+def search_and_chat(search_query: str, summary_length: str = "in-depth") -> list:
     config = load_config("config.yaml")
     openai.api_key = config["openai_key"]
     pinecone.init(api_key=config["pinecone_api_key"], environment=config["pinecone_environment"])
@@ -65,6 +65,7 @@ def search_and_chat(search_query: str) -> list:
 
     query_embeds = get_embedding(search_query)
     response = query_pinecone(index, query_embeds)
+
     print(response)
     
     response_texts = get_response_texts(response)

@@ -39,8 +39,10 @@ def search():
     results = []
     if request.method == 'POST':
         search_query = request.form['search_query']
+        summary_length = request.form.get('summary_length', 'in-depth')  # Get the summary length option from the frontend
+        print(summary_length)
         if search_query:
-            results = search_and_chat(search_query)
+            results = search_and_chat(search_query, summary_length)
     
     return render_template('index.html', results=results)
 

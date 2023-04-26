@@ -71,6 +71,17 @@
                                 <label for="search_query">Search Query:</label>
                                 <input type="text" name="search_query" id="search_query" class="form-control">
                             </div>
+                            <div class="form-group">
+                                <label>Summary Length:</label><br>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="summary_length" id="in-depth" value="in-depth" checked>
+                                    <label class="form-check-label" for="in-depth">In-Depth</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="summary_length" id="overview" value="overview">
+                                    <label class="form-check-label" for="overview">Overview</label>
+                                </div>
+                            </div>
                             <button type="submit" class="btn btn-primary">Search</button>
                         </form>
                     </div>

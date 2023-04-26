@@ -21,8 +21,7 @@ def load_config(file_path: str) -> dict:
         return yaml.safe_load(config_file)
 
 
-# 3200 is aprox 1042 tokens
-# Text Tiling
+
 def split_text_data(text: str, max_chars: int = 3200) -> list:
     # initialize TextTilingTokenizer
     ttt = TextTilingTokenizer()
