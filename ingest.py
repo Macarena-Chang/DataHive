@@ -154,7 +154,7 @@ def ingest_files(file_paths: List[str]):
         chunks = split_text_data(text)
 
         file_unique_id = str(uuid.uuid4())
-        pinecone_store = config["PINECONE_INDEX_NAME"]
+        pinecone_store = pinecone.Index(config["PINECONE_INDEX_NAME"])
         embeddings = generate_embeddings(chunks)
 
         file_name = file_path
