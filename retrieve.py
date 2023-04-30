@@ -16,7 +16,6 @@ def get_embedding(text: str, model: str = "text-embedding-ada-002"):
 
 
 def query_pinecone(index, query_embedding, top_k=5, include_metadata=True):
-    print("in query_pinecone")
     response = index.query(query_embedding, top_k=top_k,
                            include_metadata=include_metadata)
     return response
@@ -37,9 +36,8 @@ def generate_summary(prompt: str):
     )
     return response_chat.choices[0].message['content']
 
+
 # format summary to handle how code is displayed
-
-
 def format_summary(summary: str) -> str:
     backtick_occurrences = summary.count("```")
     formatted_summary = ""

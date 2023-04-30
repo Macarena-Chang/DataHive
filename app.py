@@ -7,10 +7,7 @@ from retrieve import search_and_chat
 from chat_with_data import chat
 import yaml
 
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.llms import OpenAI as OpenAIGPT
-from langchain.chains.question_answering import load_qa_chain
-import pinecone
+
 
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:

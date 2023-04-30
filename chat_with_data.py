@@ -1,22 +1,25 @@
 # from dotenv import dotenv_values
+import logging
 import yaml
-from flask import request, jsonify
+import openai
+import pinecone
 from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAIChat
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
-import yaml
-import logging
+from flask import jsonify, make_response
+from flask import request
 from retrieve import get_embedding
 from retrieve import query_pinecone
-import pinecone
-from flask import jsonify, make_response
-import openai
-#config = dotenv_values(".env")
+
+# config = dotenv_values(".env")
+
+
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
         return yaml.safe_load(config_file)
-    
+
+
 config = load_config("config.yaml")
 
 # Set up logging
@@ -37,9 +40,11 @@ logger.info("Initializing QA chain......")
 chain = load_qa_chain(
     OpenAIChat(openai_api_key=config["OPENAI_API_KEY"]),
     chain_type="stuff",
-    memory=ConversationBufferMemory(memory_key="chat_history", input_key="human_input"),
+    memory=ConversationBufferMemory(
+        memory_key="chat_history", input_key="human_input"),
     prompt=PromptTemplate(
-        input_variables=["chat_history", "human_input", "context", "tone", "persona", "filenames","text_list"],
+        input_variables=["chat_history", "human_input",
+                         "context", "tone", "persona", "filenames", "text_list"],
         template="""You are a chatbot who acts like {persona}, having a conversation with a student.
 
 Given the following extracted parts of a long document and a question, Create a final answer with references ("FILENAMES")and ("SOURCES") in the tone {tone}. 
@@ -57,26 +62,27 @@ Chatbot:""",
 )
 
 
-def chat():
+def chat(truncated_question=None):
     try:
         # Get the question from the request
         question = request.json["user_input"]
-        print(question)
         query_embeds = get_embedding(question)
         documents = query_pinecone(index, query_embeds, include_metadata=True)
-        print("documents[matches]:", documents["matches"])
-        filenames = [doc["metadata"]["file_name"] for doc in documents["matches"]]
-        print("filenames:", filenames)
-        logger.info("filenames:", filenames)
-        # Extract the relevant text from the matching documents
-        text_list = [{"text": match["metadata"]["text"]} for match in documents["matches"]]
-        print("text list")
-        print(text_list)
-        
+        filenames = [doc["metadata"]["file_name"]
+                     for doc in documents["matches"]]
+
+        # Extract the relevant text from the matching documents (if truncated [:-1] to remove some data )
+        if truncated_question:
+            text_list = [{"text": match["metadata"]["text"]}
+                         for match in documents["matches"][:-1]]
+        else:
+            text_list = [{"text": match["metadata"]["text"]}
+                         for match in documents["matches"]]
+
         # Get the bot's response
         response = chain(
             {
-               "input_documents": documents["matches"],
+                "input_documents": documents["matches"],
                 "human_input": question,
                 "tone": tone,
                 "persona": persona,
@@ -87,19 +93,16 @@ def chat():
         )
 
         # Extract the response text
-        #response_text = response['choices'][0]['text']
         response_text = response['output_text']
         # Return the JSON serialized response
-        #return response
-        #return jsonify({"response": response_text})
         return make_response(jsonify({"response": response_text}), 200)
-    
+
     except openai.InvalidRequestError as e:
         if "maximum context length" in str(e):
-            return jsonify({"error": "The input is too long. Please reduce the length of the messages."}), 422
+            return chat(truncated_question=question)
+            # return jsonify({"error": "The input is too long. Please reduce the length of the messages."}), 422
         else:
             return jsonify({"error": "Unable to process the request due to an invalid request error."}), 400
-
 
     except Exception as e:
         # Log the error and return an error response
