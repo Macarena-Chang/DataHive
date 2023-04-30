@@ -47,11 +47,13 @@ chain = load_qa_chain(
                          "context", "tone", "persona", "filenames", "text_list"],
         template="""You are a chatbot who acts like {persona}, having a conversation with a student.
 
-Given the following extracted parts of a long document and a question, Create a final answer with references ("FILENAMES")and ("SOURCES") in the tone {tone}. 
+Given the following extracted parts of a long document and a question, Create a final answer with references ("FILENAMES") in the tone {tone}. 
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
-ALWAYS return a "FILENAMES" and "SOURCES" part in your answer with the {filenames} of the data.
-SOURCES should only be hyperlink URLs which are genuine and not made up.
-Extracted parts: {text_list}. STICK TO EXTRACTED PARTS
+ALWAYS return a "FILENAMES" part in only in the end of your answer with the {filenames}.
+
+Extracted parts: {text_list}. STICK TO EXTRACTED PARTS.
+
+
 {context}
 
 {chat_history}
@@ -62,22 +64,29 @@ Chatbot:""",
 )
 
 
-def chat(truncated_question=None):
+def chat(truncated_question=None,truncation_step=0):
     try:
         # Get the question from the request
         question = request.json["user_input"]
         query_embeds = get_embedding(question)
         documents = query_pinecone(index, query_embeds, include_metadata=True)
-        filenames = [doc["metadata"]["file_name"]
-                     for doc in documents["matches"]]
 
-        # Extract the relevant text from the matching documents (if truncated [:-1] to remove some data )
+        # Log number of matching documents
+        logger.debug(f"Number of matching documents: {len(documents['matches'])}")
+
+        # Extract the unique filenames from the matching documents
+        filenames = get_unique_filenames(documents["matches"])
+        logger.info(f"Unique source filenames: {filenames}")
+
+        # Extract the relevant text from the matching documents (if truncated, remove truncation_step number of elements)
+        text_list = [{"text": match["metadata"]["text"]}
+                    for match in documents["matches"]]
+        
         if truncated_question:
-            text_list = [{"text": match["metadata"]["text"]}
-                         for match in documents["matches"][:-1]]
-        else:
-            text_list = [{"text": match["metadata"]["text"]}
-                         for match in documents["matches"]]
+            original_length = len(text_list)
+            text_list = text_list[:-truncation_step]
+            logger.info(f"Truncating text_list from {original_length} to {len(text_list)} elements.")
+
 
         # Get the bot's response
         response = chain(
@@ -94,13 +103,17 @@ def chat(truncated_question=None):
 
         # Extract the response text
         response_text = response['output_text']
+        logger.info(f"Chatbot response: {response_text}")
         # Return the JSON serialized response
         return make_response(jsonify({"response": response_text}), 200)
 
     except openai.InvalidRequestError as e:
         if "maximum context length" in str(e):
-            return chat(truncated_question=question)
-            # return jsonify({"error": "The input is too long. Please reduce the length of the messages."}), 422
+            if truncation_step < 4:
+                return chat(truncated_question=question, truncation_step=truncation_step + 1)
+            else: 
+                logger.error(f"Error while processing request: {e}")
+                return jsonify({"error": "The input is too long. Please reduce the length of the messages."}), 422
         else:
             return jsonify({"error": "Unable to process the request due to an invalid request error."}), 400
 
@@ -108,3 +121,19 @@ def chat(truncated_question=None):
         # Log the error and return an error response
         logger.error(f"Error while processing request: {e}")
         return jsonify({"error": "Unable to process the request."}), 500
+
+def get_unique_filenames(matches):
+    seen_filenames = set()
+    filenames = []
+
+    for doc in matches:
+        file_name = doc["metadata"]["file_name"]
+
+        # Remove 'uploads/' part from the filename if present
+        file_name = file_name.replace('uploads/', '')
+
+        if file_name not in seen_filenames:
+            filenames.append(file_name)
+            seen_filenames.add(file_name)
+
+    return filenames
