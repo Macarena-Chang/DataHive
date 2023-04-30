@@ -3,15 +3,34 @@ from werkzeug.utils import secure_filename
 import os
 from ingest import ingest_files
 from retrieve import search_and_chat
+# from dotenv import dotenv_values
+from chat_with_data import chat
+import yaml
+
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.llms import OpenAI as OpenAIGPT
+from langchain.chains.question_answering import load_qa_chain
+import pinecone
+
+def load_config(file_path: str) -> dict:
+    with open(file_path, "r") as config_file:
+        return yaml.safe_load(config_file)
+
+
+config = load_config("config.yaml")
+
 
 app = Flask(__name__)
+
 
 if not os.path.exists('uploads'):
     os.makedirs('uploads')
 
+
 @app.route('/', methods=['GET', 'POST'])
 def home():
     return render_template('index.html')
+
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
@@ -31,8 +50,9 @@ def upload():
         if file_paths:
             ingest_files(file_paths)
             message = "Files uploaded and ingested successfully."
-    
+
     return render_template('index.html', message=message)
+
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():
@@ -41,8 +61,16 @@ def search():
         search_query = request.form['search_query']
         if search_query:
             results = search_and_chat(search_query)
-    
+
     return render_template('index.html', results=results)
+
+
+@app.route('/chat', methods=['GET', 'POST'])
+def chat_with_your_data():
+    if request.method == 'POST':
+        response = chat()
+        return response
+    return render_template('chat.html')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

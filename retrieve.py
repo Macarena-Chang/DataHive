@@ -1,9 +1,14 @@
 import pinecone
 import openai
-from dotenv import dotenv_values
+import yaml
+# from dotenv import dotenv_values
 
-config = dotenv_values(".env")
-
+#config = dotenv_values(".env")
+def load_config(file_path: str) -> dict:
+    with open(file_path, "r") as config_file:
+        return yaml.safe_load(config_file)
+    
+config = load_config("config.yaml")
 
 def get_embedding(text: str, model: str = "text-embedding-ada-002"):
     response = openai.Embedding.create(input=text, model=model)
@@ -11,6 +16,7 @@ def get_embedding(text: str, model: str = "text-embedding-ada-002"):
 
 
 def query_pinecone(index, query_embedding, top_k=5, include_metadata=True):
+    print("in query_pinecone")
     response = index.query(query_embedding, top_k=top_k,
                            include_metadata=include_metadata)
     return response

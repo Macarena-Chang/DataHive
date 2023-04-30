@@ -6,16 +6,23 @@ import json
 import docx
 import nltk
 import zipfile
+import yaml
 from xml.etree import ElementTree as ET
 import re
 from nltk.tokenize import TextTilingTokenizer
 from pdfminer.high_level import extract_text
 from typing import List
+#from dotenv import dotenv_values
 # nltk.download("stopwords")
 # nltk.download("punkt")
-from dotenv import dotenv_values
 
-config = dotenv_values(".env")
+
+#config = dotenv_values(".env")
+def load_config(file_path: str) -> dict:
+    with open(file_path, "r") as config_file:
+        return yaml.safe_load(config_file)
+    
+config = load_config("config.yaml")
 
 # 3200 is aprox 1042 tokens
 # Text Tiling
@@ -82,11 +89,9 @@ def store_embeddings(chunks: list, embeddings: list, file_unique_id: str, pineco
     id_to_text_mapping = {}
     for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
         chunk_unique_id = f"{file_unique_id}_{idx}"
-        metadata = {'chunk': idx, 'text': chunk,
-                    'file_id': file_unique_id, 'file_name': file_name}
+        metadata = {'chunk': idx, 'text': chunk,'file_id': file_unique_id, 'file_name': file_name}
         id_to_text_mapping[chunk_unique_id] = metadata
-        pinecone_store.upsert(vectors=zip(
-            [chunk_unique_id], [embedding], [metadata]))
+        pinecone_store.upsert(vectors=zip([chunk_unique_id], [embedding], [metadata]))
     return id_to_text_mapping
 
 
@@ -154,7 +159,7 @@ def ingest_files(file_paths: List[str]):
         chunks = split_text_data(text)
 
         file_unique_id = str(uuid.uuid4())
-        pinecone_store = config["PINECONE_INDEX_NAME"]
+        pinecone_store = pinecone.Index(config["PINECONE_INDEX_NAME"])
         embeddings = generate_embeddings(chunks)
 
         file_name = file_path
