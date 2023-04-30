@@ -11,7 +11,7 @@ from retrieve import get_embedding
 from retrieve import query_pinecone
 import pinecone
 from flask import jsonify, make_response
-
+import openai
 #config = dotenv_values(".env")
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
@@ -94,6 +94,12 @@ def chat():
         #return jsonify({"response": response_text})
         return make_response(jsonify({"response": response_text}), 200)
     
+    except openai.InvalidRequestError as e:
+        if "maximum context length" in str(e):
+            return jsonify({"error": "The input is too long. Please reduce the length of the messages."}), 422
+        else:
+            return jsonify({"error": "Unable to process the request due to an invalid request error."}), 400
+
 
     except Exception as e:
         # Log the error and return an error response

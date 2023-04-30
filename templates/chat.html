@@ -111,8 +111,14 @@
                 }
               }, typingSpeed);
             },
-            error: function () {
-              alert("Unable to process the request.");
+            error: function (jqXHR) {
+              if (jqXHR.status === 422) {
+                alert("The input is too long. Please reduce the length of the messages.");
+              } else if (jqXHR.status === 400) {
+                alert("Unable to process the request due to an invalid request error.");
+              } else {
+                alert("Unable to process the request.");
+              }
               $("#loading-indicator").hide();
             },
           });
@@ -163,6 +169,9 @@
       <div class="row">
         <div class="col-12 offset-md-3 col-md-6 text-center">
           <div id="chat-box">
+            <div class="chatbox-header">
+              <h2>Chat with your Data!</h2>
+            </div>
             <div id="chat-area"></div>
             <div id="input-area">
               <input type="text" id="question-input" placeholder="Ask here" />

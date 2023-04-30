@@ -1,14 +1,14 @@
 body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    color: #444;
 }
 
 .navbar {
     font-size: 1.1rem;
+    
 }
 
-.card {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
+
 
 .footer {
     font-size: 0.9rem;
@@ -164,7 +164,7 @@ code{
 
 #chat-box {
     background-color: white;
-    width: 400px;
+    width: 500px;
     border-radius: 5px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     display: flex;
@@ -173,11 +173,14 @@ code{
     position: relative;
   }
   
+  
   #chat-area {
     flex-grow: 1;
     padding: 20px;
     overflow-y: scroll;
+    
   }
+  
   
   .message-container {
     margin-bottom: 20px;
@@ -224,6 +227,8 @@ code{
     display: flex;
     align-items: center;
     border-top: 1px solid #f1f0f0;
+    justify-content: space-between;
+
   }
   
   #question-input {
@@ -235,14 +240,15 @@ code{
   }
   
   #send-button {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 15px;
-    font-size: 16px;
-    margin-left: 10px;
     cursor: pointer;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
   }
   
   #send-button:hover {
@@ -288,7 +294,30 @@ code{
     left: 0;
     background-color: rgba(255, 255, 255, 0.5);
   }
+
+  .card-title {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
   
+  .card-description {
+    font-size: 1.1rem;
+    margin-top: 0;
+  }
+
+  .chatbox-header {
+    padding: 20px;
+    background-color: #f4f4f4;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+  }
+  
+  .chatbox-header h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+  }
   @keyframes spin {
     0% {
       transform: rotate(0deg);
