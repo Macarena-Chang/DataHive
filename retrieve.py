@@ -17,6 +17,7 @@ def get_embedding(text: str, model: str = "text-embedding-ada-002"):
     response = openai.Embedding.create(input=text, model=model)
     return response["data"][0]["embedding"]
 
+# TODO: delete this (moved to doc utils)
 @lru_cache(maxsize=128, typed=False)
 def query_pinecone(index, query_embedding_tuple, top_k=5, include_metadata=True):
     # Convert the tuple back to a list

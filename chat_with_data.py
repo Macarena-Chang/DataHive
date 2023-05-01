@@ -12,6 +12,7 @@ from retrieve import get_embedding
 from retrieve import query_pinecone
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
+from doc_utils import search_documents_by_file_name
 # config = dotenv_values(".env")
 
 
@@ -66,7 +67,7 @@ def chat(truncated_question=None,truncation_step=0):
     Handles the chat request, retrieves relevant documents, and generates the chatbot's response.
 
     :param truncated_question: The original question with a reduced length, if any (default: None).
-    :param truncation_step: The number of times the input question has been truncated (default: 0).
+    :param truncation_step: The number of times the incput question has been truncated (default: 0).
     :return: A JSON serialized response containing the chatbot's response or an error message.
     """
     try:
@@ -74,8 +75,10 @@ def chat(truncated_question=None,truncation_step=0):
         question = request.json["user_input"]
         query_embeds = get_embedding(question)
 
-        documents = query_pinecone(index, tuple(query_embeds), include_metadata=True)
-
+        #documents0 = query_pinecone(index, tuple(query_embeds), include_metadata=True)
+        documents00 = search_documents_by_file_name(index, tuple(query_embeds), file_name='uploads/Tutorial_python.pdf', include_metadata=True)
+        documents = search_documents_by_file_name(index, tuple(query_embeds), file_name='demofile6-pythoninputoutput.txt', include_metadata=True)
+        
         # Print the cache statistics
         #print(query_pinecone.cache_info())
 
