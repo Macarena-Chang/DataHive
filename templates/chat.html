@@ -27,7 +27,6 @@
       integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
       crossorigin="anonymous"
     ></script>
-
     <!--My custom css-->
     <link
       rel="stylesheet"
@@ -43,15 +42,61 @@
       });
     </script>
 
+
     <script>
       // Generate a unique ID for each message
       function generateMessageID() {
         return "msg-" + Math.random().toString(36).substr(2, 9);
       }
+
+      // For file filter
+      let selectedFileName = null;
+
+      function updateFileFilter() {
+        selectedFileName = $("#file-select").val(); // Get the selected file name
+        if (selectedFileName === "") {
+          selectedFileName = null; // Set it to null if it's an empty string
+        }
+        var displayText = selectedFileName === null ? "All Your Files" : selectedFileName;
+        $("#selected-file").text(displayText); // Update the "You are talking to" text
+      }
+      
+      function populateFileSelector() {
+        // Fetch the content of filenames.json
+        fetch("/filenames.json")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to fetch filenames.json");
+            }
+            return response.json();
+          })
+          .then((filenames) => {
+            for (const filename in filenames) {
+              // Remove the 'uploads/' prefix and display the filename in the dropdown
+              const displayName = filename.replace("uploads/", "");
+              $("#file-select").append(`<option value="${filename}">${displayName}</option>`);
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching filenames.json:", error);
+          });
+      }
+      
+      // Call the function after the document is ready
+      $(document).ready(function () {
+        populateFileSelector();
+        updateFileFilter();
+      });
+      
       // Send the user's question to the server and display the response
       function sendQuestion() {
         var question = $("#question-input").val();
         if (question) {
+          var selectedFile = $("#file-select").val(); // Get the selected file name
+          if (selectedFile === "") {
+            selectedFile = null; // Set it to null if it's an empty string
+          }
+          console.log("selectedFile before sending request:", selectedFile); // Debugging line
           var timestamp = new Date().toLocaleTimeString();
           $("#chat-area").append(
             "<div container class='message-container'><div class='row'><div class='col timestamp'><p class='small mb-1 text-muted'>" +
@@ -69,7 +114,7 @@
             contentType: "application/json",
             data: JSON.stringify({
               user_input: question,
-              file_unique_id: "d9ed9718-c05b-4ce3-912c-9a8a8b0df148",
+                      file_name: selectedFile, // Use the local variable selectedFile instead of selectedFileName
             }),
             success: function (data) {
               var response = data.response.replace(/\n/g, "<br><br>");
@@ -171,7 +216,20 @@
           <div id="chat-box">
             <div class="chatbox-header">
               <h2>Chat with your Data!</h2>
+
             </div>
+            <div class="container">
+              <div class="row">
+                <div class="col-12 text-center">
+                  <h4>You are talking to:</h4>
+                  <select class="custom-select" id="file-select" onchange="updateFileFilter()">
+                  <option value="">All Your Files</option>
+                    <!-- Populate the options dynamically -->
+                  </select>
+                </div>
+              </div>
+            </div>
+            
             <div id="chat-area"></div>
             <div id="input-area">
               <input type="text" id="question-input" placeholder="Ask here" />

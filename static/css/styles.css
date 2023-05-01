@@ -327,3 +327,13 @@ code{
     }
   }
 
+  .custom-select {
+    width: 100%;
+    max-width: 300px;
+    margin-bottom: 1rem;
+  }
+  
+  #selected-file {
+    font-weight: 600;
+  }
+  
