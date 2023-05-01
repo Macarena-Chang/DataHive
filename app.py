@@ -6,6 +6,7 @@ from retrieve import search_and_chat
 # from dotenv import dotenv_values
 from chat_with_data import chat
 import yaml
+from flask import send_from_directory
 
 
 
@@ -68,6 +69,10 @@ def chat_with_your_data():
         response = chat()
         return response
     return render_template('chat.html')
+
+@app.route('/filenames.json')
+def serve_filenames_json():
+    return send_from_directory('.', 'filenames.json')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

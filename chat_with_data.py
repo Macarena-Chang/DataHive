@@ -12,7 +12,7 @@ from retrieve import get_embedding
 from retrieve import query_pinecone
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
-from doc_utils import search_documents_by_file_name
+from doc_utils import search_documents_by_file_name, fetchTopK
 # config = dotenv_values(".env")
 
 
@@ -73,13 +73,11 @@ def chat(truncated_question=None,truncation_step=0):
     try:
         # Get the question from the request
         question = request.json["user_input"]
+        file_name = request.json["file_name"]
         query_embeds = get_embedding(question)
 
-        #documents0 = query_pinecone(index, tuple(query_embeds), include_metadata=True)
-        documents00 = search_documents_by_file_name(index, tuple(query_embeds), file_name='uploads/Tutorial_python.pdf', include_metadata=True)
-        documents = search_documents_by_file_name(index, tuple(query_embeds), file_name='demofile6-pythoninputoutput.txt', include_metadata=True)
+        documents = search_documents_by_file_name(index, tuple(query_embeds), file_name, include_metadata=True)
         
-        # Print the cache statistics
         #print(query_pinecone.cache_info())
 
         # Log number of matching documents
