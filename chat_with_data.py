@@ -11,6 +11,7 @@ from flask import request
 from retrieve import get_embedding
 from retrieve import query_pinecone
 from langchain.chat_models import ChatOpenAI
+from langchain.llms import OpenAI
 # config = dotenv_values(".env")
 
 
@@ -26,8 +27,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Pinecone
-pinecone.init(api_key=config["PINECONE_API_KEY"],
-              environment=config["PINECONE_ENVIRONMENT"])
+pinecone.init(api_key=config["PINECONE_API_KEY"],  environment=config["PINECONE_ENVIRONMENT"])
 index = pinecone.Index(config["PINECONE_INDEX_NAME"])
 
 tone = config["tone"]
@@ -42,8 +42,7 @@ chain = load_qa_chain(
     memory=ConversationBufferMemory(
         memory_key="chat_history", input_key="human_input"),
     prompt=PromptTemplate(
-        input_variables=["chat_history", "human_input",
-                         "context", "tone", "persona", "filenames", "text_list"],
+        input_variables=["chat_history", "human_input", "context", "tone", "persona", "filenames", "text_list"],
         template="""You are a chatbot who acts like {persona}, having a conversation with a student.
 
 Given the following extracted parts of a long document and a question, Create a final answer with references ("FILENAMES") in the tone {tone}. 
@@ -120,7 +119,7 @@ def chat(truncated_question=None,truncation_step=0):
         if "maximum context length" in str(e):
             if truncation_step < 4:
                 return chat(truncated_question=question, truncation_step=truncation_step + 1)
-            else: 
+            elif truncation_step > 4:
                 logger.error(f"Error while processing request: {e}")
                 return jsonify({"error": "The input is too long. Please reduce the length of the messages."}), 422
         else:
