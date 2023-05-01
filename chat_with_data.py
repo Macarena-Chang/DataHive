@@ -4,14 +4,13 @@ import yaml
 import openai
 import pinecone
 from langchain.chains.question_answering import load_qa_chain
-from langchain.llms import OpenAIChat
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 from flask import jsonify, make_response
 from flask import request
 from retrieve import get_embedding
 from retrieve import query_pinecone
-
+from langchain.chat_models import ChatOpenAI
 # config = dotenv_values(".env")
 
 
@@ -38,7 +37,7 @@ persona = config["persona"]
 # Initialize the QA chain
 logger.info("Initializing QA chain......")
 chain = load_qa_chain(
-    OpenAIChat(openai_api_key=config["OPENAI_API_KEY"]),
+    ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
     chain_type="stuff",
     memory=ConversationBufferMemory(
         memory_key="chat_history", input_key="human_input"),
@@ -49,7 +48,7 @@ chain = load_qa_chain(
 
 Given the following extracted parts of a long document and a question, Create a final answer with references ("FILENAMES") in the tone {tone}. 
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
-ALWAYS return a "FILENAMES" part in only in the end of your answer with the {filenames}.
+ALWAYS return a "FILENAMES" part only at the end of your answer with the {filenames}.
 
 Extracted parts: {text_list}. STICK TO EXTRACTED PARTS.
 
@@ -63,13 +62,23 @@ Chatbot:""",
     verbose=False,
 )
 
-
 def chat(truncated_question=None,truncation_step=0):
+    """
+    Handles the chat request, retrieves relevant documents, and generates the chatbot's response.
+
+    :param truncated_question: The original question with a reduced length, if any (default: None).
+    :param truncation_step: The number of times the input question has been truncated (default: 0).
+    :return: A JSON serialized response containing the chatbot's response or an error message.
+    """
     try:
         # Get the question from the request
         question = request.json["user_input"]
         query_embeds = get_embedding(question)
-        documents = query_pinecone(index, query_embeds, include_metadata=True)
+
+        documents = query_pinecone(index, tuple(query_embeds), include_metadata=True)
+
+        # Print the cache statistics
+        #print(query_pinecone.cache_info())
 
         # Log number of matching documents
         logger.debug(f"Number of matching documents: {len(documents['matches'])}")

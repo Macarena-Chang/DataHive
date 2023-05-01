@@ -1,6 +1,7 @@
 import pinecone
 import openai
 import yaml
+from functools import lru_cache
 # from dotenv import dotenv_values
 
 #config = dotenv_values(".env")
@@ -10,15 +11,20 @@ def load_config(file_path: str) -> dict:
     
 config = load_config("config.yaml")
 
+
+@lru_cache(maxsize=128, typed=False)
 def get_embedding(text: str, model: str = "text-embedding-ada-002"):
     response = openai.Embedding.create(input=text, model=model)
     return response["data"][0]["embedding"]
 
+@lru_cache(maxsize=128, typed=False)
+def query_pinecone(index, query_embedding_tuple, top_k=5, include_metadata=True):
+    # Convert the tuple back to a list
+    query_embedding = list(query_embedding_tuple)
 
-def query_pinecone(index, query_embedding, top_k=5, include_metadata=True):
-    response = index.query(query_embedding, top_k=top_k,
-                           include_metadata=include_metadata)
+    response = index.query(query_embedding, top_k=top_k, include_metadata=include_metadata)
     return response
+
 
 
 def get_response_texts(response):
@@ -66,7 +72,7 @@ def search_and_chat(search_query: str) -> list:
     index = pinecone.Index(config["PINECONE_INDEX_NAME"])
 
     query_embeds = get_embedding(search_query)
-    response = query_pinecone(index, query_embeds)
+    response = query_pinecone(index,tuple(query_embeds))
     print(response)
 
     response_texts = get_response_texts(response)
