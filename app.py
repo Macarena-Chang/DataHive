@@ -7,7 +7,7 @@ from retrieve import search_and_chat
 from chat_with_data import chat
 import yaml
 from flask import send_from_directory
-
+from summary import summarize
 
 
 def load_config(file_path: str) -> dict:
@@ -73,6 +73,16 @@ def chat_with_your_data():
 @app.route('/filenames.json')
 def serve_filenames_json():
     return send_from_directory('.', 'filenames.json')
+
+@app.route('/summary', methods=['GET', 'POST'])
+def get_summary():
+    if request.method == 'POST':
+        text = request.form['text']
+        summary = summarize(text)
+        return render_template('summary.html', summary=summary)
+    return render_template('summary.html', summary=None)
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
