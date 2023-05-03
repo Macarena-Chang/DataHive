@@ -61,7 +61,7 @@ async def upload(files: List[UploadFile] = File(...)):
 
     if file_paths:
         ingest_files(file_paths)
-        message = "Files uploaded and ingested successfully."
+        message = "File uploaded and ingested successfully."
 
     return {"message": message}
 # TODO: check
