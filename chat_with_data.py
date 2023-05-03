@@ -6,15 +6,15 @@ import pinecone
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
-from flask import jsonify, make_response
-from flask import request
+# from flask import jsonify, make_response
+# from flask import request
 from retrieve import get_embedding
 from retrieve import query_pinecone
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 from doc_utils import search_documents_by_file_name, fetchTopK
 # config = dotenv_values(".env")
-
+from fastapi import HTTPException
 
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
@@ -37,8 +37,7 @@ persona = config["persona"]
 
 # Initialize the QA chain
 logger.info("Initializing QA chain......")
-chain = load_qa_chain(
-    ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
+chain = load_qa_chain(    ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
     chain_type="stuff",
     memory=ConversationBufferMemory(
         memory_key="chat_history", input_key="human_input"),
@@ -62,7 +61,7 @@ Chatbot:""",
     verbose=False,
 )
 
-def chat(truncated_question=None,truncation_step=0):
+def chat_ask_question(user_input: str, file_name=None, truncated_question=None,truncation_step=0):
     """
     Handles the chat request, retrieves relevant documents, and generates the chatbot's response.
 
@@ -72,8 +71,8 @@ def chat(truncated_question=None,truncation_step=0):
     """
     try:
         # Get the question from the request
-        question = request.json["user_input"]
-        file_name = request.json["file_name"]
+        question = user_input
+        file_name = file_name
         query_embeds = get_embedding(question)
 
         documents = search_documents_by_file_name(index, tuple(query_embeds), file_name, include_metadata=True)
@@ -109,27 +108,27 @@ def chat(truncated_question=None,truncation_step=0):
             },
             return_only_outputs=True,
         )
-
+        logger.info(f"TEXT LIST: {text_list} " )
         # Extract the response text
         response_text = response['output_text']
         logger.info(f"Chatbot response: {response_text}")
         # Return the JSON serialized response
-        return make_response(jsonify({"response": response_text}), 200)
+        return {"response": response_text}
 
     except openai.InvalidRequestError as e:
         if "maximum context length" in str(e):
             if truncation_step < 4:
-                return chat(truncated_question=question, truncation_step=truncation_step + 1)
+                return chat_ask_question(truncated_question=question, truncation_step=truncation_step + 1)
             elif truncation_step > 4:
                 logger.error(f"Error while processing request: {e}")
-                return jsonify({"error": "The input is too long. Please reduce the length of the messages."}), 422
+                raise HTTPException(status_code=422, detail="The input is too long. Please reduce the length of the messages.")
         else:
-            return jsonify({"error": "Unable to process the request due to an invalid request error."}), 400
+            raise HTTPException(status_code=400, detail="Unable to process the request due to an invalid request error.")
 
     except Exception as e:
         # Log the error and return an error response
         logger.error(f"Error while processing request: {e}")
-        return jsonify({"error": "Unable to process the request."}), 500
+        raise HTTPException(status_code=500, detail="Unable to process the request.")
 
 def get_unique_filenames(matches):
     seen_filenames = set()

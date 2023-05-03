@@ -30,7 +30,8 @@
     <!--My custom css-->
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/styles.css') }}"
+
+      href="{{ url_for('static', path='css/styles.css') }}"
     />
     <script>
       $(document).ready(function () {
@@ -91,12 +92,13 @@
       // Send the user's question to the server and display the response
       function sendQuestion() {
         var question = $("#question-input").val();
-        if (question) {
+        if (question) { 
           var selectedFile = $("#file-select").val(); // Get the selected file name
           if (selectedFile === "") {
             selectedFile = null; // Set it to null if it's an empty string
           }
           console.log("selectedFile before sending request:", selectedFile); // Debugging line
+          console.log("Data object before stringify:", { user_input: question, file_name: selectedFile });
           var timestamp = new Date().toLocaleTimeString();
           $("#chat-area").append(
             "<div container class='message-container'><div class='row'><div class='col timestamp'><p class='small mb-1 text-muted'>" +
@@ -108,13 +110,15 @@
           $("#question-input").val("");
           $("#chat-area").scrollTop($("#chat-area").prop("scrollHeight"));
           $("#loading-indicator").show();
+          console.log("Data object before stringify:", { user_input: question, file_name: selectedFile });
           $.ajax({
-            url: "/chat",
+            url: "/chat_question",
+            dataType: "json",
             type: "POST",
             contentType: "application/json",
             data: JSON.stringify({
               user_input: question,
-                      file_name: selectedFile, // Use the local variable selectedFile instead of selectedFileName
+              file_name: selectedFile, // Use the local variable selectedFile instead of selectedFileName
             }),
             success: function (data) {
               var response = data.response.replace(/\n/g, "<br><br>");
