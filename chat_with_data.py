@@ -111,7 +111,6 @@ def chat_ask_question(user_input: str, file_name=None, truncated_question=None,t
         logger.info(f"TEXT LIST: {text_list} " )
         # Extract the response text
         response_text = response['output_text']
-        logger.info(f"Chatbot response: {response_text}")
         # Return the JSON serialized response
         return {"response": response_text}
 
