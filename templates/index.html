@@ -60,33 +60,18 @@
                         <h3>Search</h3>
                     </div>
                     <div class="card-body">
-                        <form action="{{ url_for('search') }}" method="POST">
-                            <div class="form-group">
-                                <label for="search_query">Search Query:</label>
-                                <input type="text" name="search_query" id="search_query" class="form-control">
-                            </div>
-                            <button type="submit" class="btn btn-primary">Search</button>
-                        </form>
+                        <div class="form-group">
+                            <label for="search_query">Search Query:</label>
+                            <input type="text" name="search_query" id="search_query" class="form-control" />
+                        </div>
+                        <button id="search-btn" type="button" class="btn btn-primary">Search</button>
+                    
+                                            <!--  container for search results -->
+                        <div class="row mt-5 search-results-container">
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    
-        {% if results %}
-            <div class="row mt-5">
-                <div class="col">
-                    <h2>Search Results</h2>
-                    {% for result in results %}
-                        <div class="card mt-3">
-                            <div class="card-body">
-                                <!--add safe to tell jinja not to scape html tags in var-->
-                                <span class="wrap">{{ result | safe }}</span>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
     </div>
     
     <footer class="bg-dark text-white mt-5">
@@ -105,7 +90,7 @@
     </footer>  
 
                     
-            <!--add safe to tell jinja not to scape html tags in var-->
+
             
     <script>
 
@@ -136,7 +121,55 @@
                 }
             });
             </script>
-                
-    
+
+
+            <script>
+                document.getElementById("search-btn").addEventListener("click", async () => {
+                    const searchQueryInput = document.getElementById("search_query");
+                    const searchQuery = searchQueryInput.value;
+            
+                    try {
+                        const response = await fetch("/search", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ search_query: searchQuery }),
+                        });
+                        const data = await response.json();
+                        console.log(data);
+            
+                        // Generate search results elements
+                        let resultsContainer = document.querySelector(".search-results-container");
+                        resultsContainer.innerHTML = ""; // Clear previous results
+            
+                        if (data.results && data.results.length > 0) {
+                            const searchResults = data.results;
+                            searchResults.forEach(result => {
+                                const resultCard = `
+                                    <div class="col-12">
+                                        <div class="card mt-3">
+                                            <div class="card-body">
+                                                <span class="wrap">${result}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                resultsContainer.insertAdjacentHTML("beforeend", resultCard);
+                            });
+                        }
+            
+                        searchQueryInput.value = ""; // Clear the search bar text
+            
+                    } catch (error) {
+                        console.error("Error:", error);
+                    }
+                });
+            </script>
+            
+            
+            
+
+
 </body>
 </html>

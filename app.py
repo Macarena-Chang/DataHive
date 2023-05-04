@@ -14,7 +14,7 @@ from summary import summarize
 from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
 from typing import Optional
-
+from fastapi.responses import JSONResponse
 
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
@@ -45,7 +45,9 @@ async def root(request: Request):
 @app.get("/chat", response_class=HTMLResponse, status_code=200)
 def chat(request: Request):
     return templates.TemplateResponse("chat.html", {"request": request})
-# TODO: check
+
+
+
 @app.post("/upload")
 async def upload(files: List[UploadFile] = File(...)):
     message = None
@@ -64,20 +66,26 @@ async def upload(files: List[UploadFile] = File(...)):
         message = "File uploaded and ingested successfully."
 
     return {"message": message}
-# TODO: check
+
+class SearchQuery(BaseModel):
+    search_query: str
+    
+# TODO: ADD LOADING INDICATOR (SPINNER). APPEND ORIGINAL QUESTION TO DIV
 @app.post("/search")
-async def search(request: Request, search_query: str):
+def search(request: Request, search_query: SearchQuery):
     results = []
-    if search_query:
-        results = search_and_chat(search_query)
-    return templates.TemplateResponse("index.html", {"request": request, "results": results})
+    if search_query.search_query:
+        results = search_and_chat(search_query.search_query)
+    return {"results": results}
+
 
 # TODO: Add error handling for file uploads
 @app.post("/chat_question") 
 def chat_ask(chat_input: ChatInput):    
     response = chat_ask_question(chat_input.user_input, chat_input.file_name)
     return response
-# TODO: check
+
+
 @app.get("/filenames.json")
 async def serve_filenames_json():
     return FileResponse('filenames.json', media_type='application/json')
