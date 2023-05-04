@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, File, UploadFile
+from fastapi import  Request, File, UploadFile,Request, Form, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +15,12 @@ from fastapi.responses import FileResponse
 from fastapi.encoders import jsonable_encoder
 from typing import Optional
 from fastapi.responses import JSONResponse
+from typing import Optional
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse, JSONResponse
+from typing import Optional
+
+
 
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
@@ -23,11 +29,7 @@ def load_config(file_path: str) -> dict:
 config = load_config("config.yaml")
 
 
-class ChatInput(BaseModel):
-    user_input: str
-    file_name: Optional[str] = None
-    
-    
+
 
 app = FastAPI()
 
@@ -42,6 +44,12 @@ if not os.path.exists('uploads'):
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+
+class ChatInput(BaseModel):
+    user_input: str
+    file_name: Optional[str] = None
+    
+    
 @app.get("/chat", response_class=HTMLResponse, status_code=200)
 def chat(request: Request):
     return templates.TemplateResponse("chat.html", {"request": request})
@@ -117,12 +125,16 @@ async def delete_file(request: Request, delete_request: DeleteRequest):
 class SummaryRequest(BaseModel):
     text: str
 
-# TODO: check
-@app.post("/summary", response_class=HTMLResponse)
-async def get_summary(request: Request, summary_request: SummaryRequest = None):
-    summary = None
-    if summary_request and summary_request.text:
-        text = summary_request.text
-        summary = summarize(text)
-    return templates.TemplateResponse("summary.html", {"request": request, "summary": summary})
+@app.get("/summary", response_class=HTMLResponse, status_code=200)
+def chat(request: Request):
+    return templates.TemplateResponse("summary.html", {"request": request})
 
+@app.post("/summary")
+async def get_summary(request: Request, background_tasks: BackgroundTasks, text: Optional[str] = Form(None)):
+    summary = None
+    if text:
+        summary = summarize(text)
+        background_tasks.add_task(summarize, text)
+    return JSONResponse(content={"summary": summary})
+
+ 

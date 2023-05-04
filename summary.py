@@ -1,7 +1,6 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
-from summarizer import Summarizer
 import gradio as gr
-import json 
+
 
 text = '''
 Using the Mouse
@@ -16,18 +15,9 @@ There is also an arrow to the extreme lower right edge of the command line which
 the command line history
 '''
 
-# from transformers import T5Tokenizer, T5ForConditionalGeneration, pipeline
-
-""" def summarize(text):
-    model = Summarizer()
-    response = model(text)
-    return response """
-
-
-
 
 def summarize(text):
-    model_name = "t5-small"
+    model_name = "t5-base"
     tokenizer = T5Tokenizer.from_pretrained(model_name)
     model = T5ForConditionalGeneration.from_pretrained(model_name)
     summarizer = pipeline("summarization", model=model, tokenizer=tokenizer)
