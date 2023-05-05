@@ -105,7 +105,7 @@ def chat(request: Request):
     return templates.TemplateResponse("summary.html", {"request": request})
 
 @app.post("/summary")
-async def summary(request: Request, background_tasks: BackgroundTasks, summary_request: SummaryRequest):
+def summary(request: Request, background_tasks: BackgroundTasks, summary_request: SummaryRequest):
     summary = None
     if summary_request.text:
         summary = summarize(summary_request.text)
