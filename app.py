@@ -8,10 +8,27 @@ from ingest import ingest_files
 from retrieve import search_and_chat
 from chat_with_data import chat_ask_question
 from summary import summarize
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import json
 import os
 import yaml
 
 app = FastAPI()
+
+# Configure CORS middleware
+origins = [
+    "http://localhost:3000",
+    "localhost:3000"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load configuration from YAML file
 def load_config(file_path: str) -> dict:
@@ -74,9 +91,14 @@ def chat_ask(chat_input: ChatInput):
     response = chat_ask_question(chat_input.user_input, chat_input.file_name)
     return response
 
-@app.get("/filenames.json")
+@app.get("/filenames_json")
 async def serve_filenames_json():
-    return FileResponse('filenames.json', media_type='application/json')
+    with open("filenames.json", "r") as file:
+        file_data = json.load(file)
+    print("Filenames")    
+    file_names = list(file_data.keys())
+    print(file_names) 
+    return JSONResponse(content=file_names)
 
 @app.post("/delete")
 async def delete_file(request: Request, delete_request: DeleteRequest):
