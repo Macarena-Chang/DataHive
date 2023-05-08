@@ -86,10 +86,15 @@ def search(request: Request, search_query: SearchQuery):
         results = search_and_chat(search_query.search_query)
     return {"results": results}
 
-@app.post("/chat_question") 
-def chat_ask(chat_input: ChatInput):    
-    response = chat_ask_question(chat_input.user_input, chat_input.file_name)
-    return response
+@app.post("/chat_question")
+def chat_ask(chat_input: ChatInput):
+    try:
+        response = chat_ask_question(chat_input.user_input, chat_input.file_name)
+        return response
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Unable to process the request.")
 
 @app.get("/filenames_json")
 async def serve_filenames_json():

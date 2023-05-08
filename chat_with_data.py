@@ -49,7 +49,7 @@ Given the following extracted parts of a long document and a question, Create a 
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
 ALWAYS return a "FILENAMES" part only at the end of your answer with the {filenames}.
 
-Extracted parts: {text_list}. STICK TO EXTRACTED PARTS.
+Extracted parts: {text_list}. STICK TO EXTRACTED PARTS. Use Markdown for code.
 
 
 {context}
@@ -89,12 +89,14 @@ def chat_ask_question(user_input: str, file_name=None, truncated_question=None,t
         # Extract the relevant text from the matching documents (if truncated, remove truncation_step number of elements)
         text_list = [{"text": match["metadata"]["text"]}
                     for match in documents["matches"]]
+            
+        if truncation_step == 0:
+            truncated_question = user_input
         
-        if truncated_question:
+        if truncation_step > 0:
             original_length = len(text_list)
             text_list = text_list[:-truncation_step]
             logger.info(f"Truncating text_list from {original_length} to {len(text_list)} elements.")
-
 
         # Get the bot's response
         response = chain(
@@ -113,17 +115,20 @@ def chat_ask_question(user_input: str, file_name=None, truncated_question=None,t
         response_text = response['output_text']
         # Return the JSON serialized response
         return {"response": response_text}
-
+    
     except openai.InvalidRequestError as e:
-        if "maximum context length" in str(e):
+        error_message = str(e)
+        if "maximum context length" in error_message:
             if truncation_step < 4:
-                return chat_ask_question(truncated_question=question, truncation_step=truncation_step + 1)
-            elif truncation_step > 4:
+                return chat_ask_question(user_input=user_input, file_name=file_name, truncated_question=truncated_question, truncation_step=truncation_step + 1)
+            elif truncation_step >= 4:
                 logger.error(f"Error while processing request: {e}")
                 raise HTTPException(status_code=422, detail="The input is too long. Please reduce the length of the messages.")
         else:
-            raise HTTPException(status_code=400, detail="Unable to process the request due to an invalid request error.")
+            logger.error(f"Invalid request error: {e}")
+            raise HTTPException(status_code=400, detail=f"Unable to process the request due to an invalid request error: {error_message}")
 
+    
     except Exception as e:
         # Log the error and return an error response
         logger.error(f"Error while processing request: {e}")
