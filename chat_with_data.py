@@ -37,7 +37,7 @@ persona = config["persona"]
 
 # Initialize the QA chain
 logger.info("Initializing QA chain......")
-chain = load_qa_chain(    ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
+chain = load_qa_chain(ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
     chain_type="stuff",
     memory=ConversationBufferMemory(
         memory_key="chat_history", input_key="human_input"),
@@ -49,7 +49,7 @@ Given the following extracted parts of a long document and a question, Create a 
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
 ALWAYS return a "FILENAMES" part only at the end of your answer with the {filenames}.
 
-Extracted parts: {text_list}. STICK TO EXTRACTED PARTS. Use Markdown for code.
+Extracted parts: {text_list}. STICK TO EXTRACTED PARTS.
 
 
 {context}
@@ -109,10 +109,15 @@ def chat_ask_question(user_input: str, file_name=None, truncated_question=None,t
                 "text_list": text_list,
             },
             return_only_outputs=True,
+            
         )
-        logger.info(f"TEXT LIST: {text_list} " )
+        # Print chat history
+        chat_history = chain.memory.buffer
+        print(f"Chat history: {chat_history}")
+        #print(f"Chat history: {chat_history}")
         # Extract the response text
         response_text = response['output_text']
+        logger.info(f"RESPONSE: {response_text} " )
         # Return the JSON serialized response
         return {"response": response_text}
     

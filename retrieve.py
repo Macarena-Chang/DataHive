@@ -1,9 +1,9 @@
 import pinecone
-import openai
+from langchain.llms import OpenAI
 import yaml
 from functools import lru_cache
 # from dotenv import dotenv_values
-
+import openai
 #config = dotenv_values(".env")
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
@@ -34,7 +34,7 @@ def get_response_texts(response):
 
 def generate_summary(prompt: str):
 
-    response_chat = openai.ChatCompletion.create(
+    response_chat = OpenAI.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
@@ -66,9 +66,9 @@ def format_summary(summary: str) -> str:
 
 
 def search_and_chat(search_query: str) -> list:
-    openai.api_key = config["OPENAI_API_KEY"]
+    OpenAI.api_key = config["OPENAI_API_KEY"]
     pinecone.init(api_key=config["PINECONE_API_KEY"],
-                  environment=config["PINECONE_ENVIRONMENT"])
+    environment=config["PINECONE_ENVIRONMENT"])
 
     index = pinecone.Index(config["PINECONE_INDEX_NAME"])
 

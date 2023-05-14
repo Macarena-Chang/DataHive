@@ -1,4 +1,4 @@
-import openai
+from langchain.llms import OpenAI
 import pinecone
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import logging
@@ -85,7 +85,7 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
 def generate_embeddings(chunks: list) -> list:
     embeddings = []
     for chunk in chunks:
-        response = openai.Embedding.create(
+        response = OpenAI.Embedding.create(
             input=chunk, model="text-embedding-ada-002")
         embeddings.append(response["data"][0]["embedding"])
     return embeddings
@@ -142,7 +142,7 @@ def ingest_files(file_paths: List[str]):
     pinecone_api_key = config["PINECONE_API_KEY"]
     pinecone_environment = config["PINECONE_ENVIRONMENT"]
 
-    openai.api_key = openai_key
+    OpenAI.api_key = openai_key
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
     text_extraction_functions = {
