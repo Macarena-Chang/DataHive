@@ -45,11 +45,12 @@ chain = load_qa_chain(ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
         input_variables=["chat_history", "human_input", "context", "tone", "persona", "filenames", "text_list"],
         template="""You are a chatbot who acts like {persona}, having a conversation with a student.
 
-Given the following extracted parts of a long document and a question, Create a final answer with references ("FILENAMES") in the tone {tone}. 
+Given the following extracted parts of a long document answer the question in the tone {tone}. 
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
 ALWAYS return a "FILENAMES" part only at the end of your answer with the {filenames}.
 
-Extracted parts: {text_list}. STICK TO EXTRACTED PARTS.
+Extracted parts: {text_list}. 
+APPLY NLP TECHNIQUES FOR A WELL FORMATTED ANSWER
 
 
 {context}

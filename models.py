@@ -36,3 +36,22 @@ class UserOut(User):
 
 class UserInDB(User):
     hashed_password: str
+
+
+from sqlalchemy import ForeignKey
+from sqlalchemy import UniqueConstraint
+class File(Base):
+    __tablename__ = "files"
+
+    file_id = Column(Integer, primary_key=True, index=True)
+    file_name = Column(String, unique=True, index=True)
+    # Add other if neccesary
+
+
+class UserFile(Base):
+    __tablename__ = "user_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"))
+    file_id = Column(String, ForeignKey("files.file_id"), unique=True)
+

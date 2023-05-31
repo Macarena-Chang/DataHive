@@ -190,7 +190,7 @@ class TokenData(BaseModel):
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def verify_password(plain_password, hashed_password):
@@ -257,7 +257,7 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-@app.post("/token",dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
+@app.post("/login",dependencies=[Depends(RateLimiter(times=1000, seconds=480))], response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
@@ -283,14 +283,95 @@ async def read_users_me(
 ):
     return current_user.to_dict()
 
-@app.get("/users/me/items/")
-async def read_own_items(
-    current_user: Annotated[User, Depends(get_current_active_user)]
-):
-    return [{"item_id": "Foo", "owner": current_user.username}]
 
 #REDIS / LIMITER
 @app.on_event("startup")
 async def startup():
     r = redis.from_url(config["REDIS_URL"], encoding="utf8")
     await FastAPILimiter.init(r)
+
+## REGISTER
+from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
+from models import UserTable, UserIn, UserOut
+
+
+@app.post("/register", response_model=UserOut)
+def create_user(user: UserIn, db: Session = Depends(get_db)):
+    hashed_password = get_password_hash(user.password)
+    db_user = UserTable(
+        username=user.username,
+        full_name=user.full_name,
+        email=user.email,
+        hashed_password=hashed_password,
+        disabled=user.disabled
+    )
+    db.add(db_user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Username or Email already registered")
+    return db_user.to_dict()
+
+
+## SOCIAL LOGIN
+""" from google.oauth2 import id_token
+from google.auth.transport import requests
+@app.get("/auth")
+def authentication(request: Request,token:str):
+    try:
+        # Specify the CLIENT_ID of the app that accesses the backend:
+        user =id_token.verify_oauth2_token(token, requests.Request(), "116988546-2a283t6anvr0.apps.googleusercontent.com")
+
+        request.session['user'] = dict({
+            "email" : user["email"] 
+        })
+        
+        return user['name'] + ' Logged In successfully'
+
+    except ValueError:
+        return "unauthorized"
+
+@app.get('/')
+def check(request:Request):
+    return "hi "+ str(request.session.get('user')['email']) """
+
+from models import UserFile , File
+from fastapi import APIRouter
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status
+from db import add_file_to_user, get_user_files
+#router = APIRouter()
+@app.post("/users/addfile/")
+async def add_file_to_user_endpoint(
+    file_id: str,
+    current_user: Annotated[UserInDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    return add_file_to_user(db, current_user.user_id, file_id)
+
+@app.get("/users/me/files/")
+async def get_user_files_endpoint(
+    current_user: Annotated[UserInDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    return get_user_files(db, current_user.user_id)
+
+from sqlalchemy.orm import Session
+from models import UserTable, File, UserFile
+
+def upload_file(db: Session, user_id: int, file_name: str):
+    # Create the File
+    new_file = File(file_name=file_name)
+    db.add(new_file)
+    db.commit()
+    
+    # Get the file_id of the newly created file
+    file_id = new_file.file_id
+
+    # Assign the File to a User
+    user_file = UserFile(user_id=user_id, file_id=file_id)
+    db.add(user_file)
+    db.commit()
+

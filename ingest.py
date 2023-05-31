@@ -1,5 +1,6 @@
 from langchain.llms import OpenAI
 import pinecone
+import openai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import logging
 import uuid
@@ -85,7 +86,7 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
 def generate_embeddings(chunks: list) -> list:
     embeddings = []
     for chunk in chunks:
-        response = OpenAI.Embedding.create(
+        response = openai.Embedding.create(
             input=chunk, model="text-embedding-ada-002")
         embeddings.append(response["data"][0]["embedding"])
     return embeddings
