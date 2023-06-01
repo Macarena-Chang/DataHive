@@ -13,6 +13,7 @@ class UserTable(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     disabled = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=False)
     def to_dict(self):
         return {
             "user_id": self.user_id,
@@ -20,6 +21,7 @@ class UserTable(Base):
             "full_name": self.full_name,
             "email": self.email,
             "disabled": self.disabled,
+            "is_verified": self.is_verified
         }
 
 class User(BaseModel):

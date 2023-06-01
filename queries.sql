@@ -13,6 +13,8 @@ CREATE TABLE users (
 INSERT INTO users (username, full_name, email, hashed_password, disabled) 
 VALUES ('macarena', 'Macarena Chang', 'macarena@mail.com', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', FALSE);
 
+ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE;
+
 
 CREATE TABLE files (
     file_id VARCHAR(36) PRIMARY KEY,
@@ -26,3 +28,4 @@ CREATE TABLE user_files (
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (file_id) REFERENCES files(file_id)
 );
+

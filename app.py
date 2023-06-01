@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, File, UploadFile, Form, BackgroundTasks, H
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from itsdangerous import SignatureExpired
 from pydantic import BaseModel
 from typing import List, Optional
 from ingest import ingest_files
@@ -164,6 +165,8 @@ from database import SessionLocal
 from models import User, UserTable,UserIn, UserInDB, UserOut
 from fastapi import Depends
 from sqlalchemy.orm import Session
+from token_service import create_token, verify_token
+from email_service import send_verification_email
 
 def get_db():
     db = SessionLocal()
@@ -211,6 +214,8 @@ def authenticate_user(db: Session, username: str, password: str):
         return False
     if not verify_password(password, user.hashed_password):
         return False
+    
+    if user.is_verified != True:raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED,detail= "Account Not Verified")
     return user
 
 
@@ -257,7 +262,7 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-@app.post("/login",dependencies=[Depends(RateLimiter(times=1000, seconds=480))], response_model=Token)
+@app.post("/login",dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
@@ -297,7 +302,7 @@ from models import UserTable, UserIn, UserOut
 
 
 @app.post("/register", response_model=UserOut)
-def create_user(user: UserIn, db: Session = Depends(get_db)):
+async def create_user(user: UserIn, db: Session = Depends(get_db)):
     hashed_password = get_password_hash(user.password)
     db_user = UserTable(
         username=user.username,
@@ -309,12 +314,30 @@ def create_user(user: UserIn, db: Session = Depends(get_db)):
     db.add(db_user)
     try:
         db.commit()
+        # After commiting the user to the database, we then create a token for the user and send a verification email
+        token = create_token({"user_id": db_user.user_id})
+        await send_verification_email(db_user.email, token)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Username or Email already registered")
     return db_user.to_dict()
 
-
+## VERIFICATION 
+@app.get("/verify")
+def verify_endpoint(token: str, db: Session = Depends(get_db)):
+    try:
+        data = verify_token(token, 86400)  # verify the token
+    except SignatureExpired:
+        raise HTTPException(status_code=400, detail="Token expired")
+    user_id = data["user_id"]
+    user = db.query(UserTable).filter(UserTable.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="User already verified")
+    user.is_verified = True
+    db.commit()
+    return {"detail": "User successfully verified"}
 ## SOCIAL LOGIN
 """ from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -357,21 +380,3 @@ async def get_user_files_endpoint(
     db: Session = Depends(get_db)
 ):
     return get_user_files(db, current_user.user_id)
-
-from sqlalchemy.orm import Session
-from models import UserTable, File, UserFile
-
-def upload_file(db: Session, user_id: int, file_name: str):
-    # Create the File
-    new_file = File(file_name=file_name)
-    db.add(new_file)
-    db.commit()
-    
-    # Get the file_id of the newly created file
-    file_id = new_file.file_id
-
-    # Assign the File to a User
-    user_file = UserFile(user_id=user_id, file_id=file_id)
-    db.add(user_file)
-    db.commit()
-

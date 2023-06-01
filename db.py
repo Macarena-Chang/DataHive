@@ -3,7 +3,8 @@ from models import UserTable, UserIn, UserOut
 
 from sqlalchemy.exc import IntegrityError
 from fastapi import Depends, HTTPException, status
-from models import UserFile , File
+from sqlalchemy.orm import Session
+from models import UserTable, File, UserFile
 def get_user(db: Session, username: str):
     return db.query(UserTable).filter(UserTable.username == username).first()
 
@@ -45,3 +46,17 @@ def add_file_to_user(db: Session, user_id: str, file_id: str):
 def get_user_files(db: Session, user_id: str):
     user_files = db.query(UserFile).filter(UserFile.user_id == user_id).all()
     return {"file_ids": [uf.file_id for uf in user_files]}
+
+def create_file_db(db: Session, user_id: int, file_name: str):
+    # Create the File
+    new_file = File(file_name=file_name)
+    db.add(new_file)
+    db.commit()
+    
+    # Get the file_id of the newly created file
+    file_id = new_file.file_id
+
+    # Assign the File to a User
+    user_file = UserFile(user_id=user_id, file_id=file_id)
+    db.add(user_file)
+    db.commit()
