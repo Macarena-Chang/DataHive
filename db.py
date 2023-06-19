@@ -4,7 +4,7 @@ from models import UserTable, UserIn, UserOut
 from sqlalchemy.exc import IntegrityError
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from models import UserTable, File, UserFile
+from models import UserTable, UserFile
 def get_user(db: Session, username: str):
     return db.query(UserTable).filter(UserTable.username == username).first()
 
@@ -27,7 +27,7 @@ def get_user(db: Session, username: str):
 
 def add_file_to_user(db: Session, user_id: str, file_id: str):
     # Check if the file with the provided file_id exists in the database
-    file = db.query(File).filter(File.file_id == file_id).first()
+    file = db.query(UserFile).filter(UserFile.file_id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -49,7 +49,7 @@ def get_user_files(db: Session, user_id: str):
 
 def create_file_db(db: Session, user_id: int, file_name: str):
     # Create the File
-    new_file = File(file_name=file_name)
+    new_file = UserFile(file_name=file_name)
     db.add(new_file)
     db.commit()
     

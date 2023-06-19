@@ -15,6 +15,7 @@ from langchain.llms import OpenAI
 from doc_utils import search_documents_by_file_name, fetchTopK
 # config = dotenv_values(".env")
 from fastapi import HTTPException
+from typing import List, Dict
 
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
@@ -34,13 +35,12 @@ index = pinecone.Index(config["PINECONE_INDEX_NAME"])
 tone = config["tone"]
 persona = config["persona"]
 
-
 # Initialize the QA chain
 logger.info("Initializing QA chain......")
 chain = load_qa_chain(ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
     chain_type="stuff",
-    memory=ConversationBufferMemory(
-        memory_key="chat_history", input_key="human_input"),
+     memory=ConversationBufferMemory(
+    memory_key="chat_history_redis", input_key="human_input"),
     prompt=PromptTemplate(
         input_variables=["chat_history", "human_input", "context", "tone", "persona", "filenames", "text_list"],
         template="""You are a chatbot who acts like {persona}, having a conversation with a student.
@@ -62,7 +62,7 @@ Chatbot:""",
     verbose=False,
 )
 
-def chat_ask_question(user_input: str, file_name=None, truncated_question=None,truncation_step=0):
+def chat_ask_question(user_input: str, chat_history_redis: List[Dict[str, str]], file_name=None, truncated_question=None,truncation_step=0):
     """
     Handles the chat request, retrieves relevant documents, and generates the chatbot's response.
 
@@ -77,6 +77,12 @@ def chat_ask_question(user_input: str, file_name=None, truncated_question=None,t
         query_embeds = get_embedding(question)
 
         documents = search_documents_by_file_name(index, tuple(query_embeds), file_name, include_metadata=True)
+        
+        
+        """ print(chat_history_redis)
+        print(type(chat_history_redis)) """
+        # Convert chat history from list of dicts to string
+        chat_history_str = "\n".join(f'{msg["user"]}: {msg["message"]}' for msg in chat_history_redis)
         
         #print(query_pinecone.cache_info())
 
@@ -102,26 +108,27 @@ def chat_ask_question(user_input: str, file_name=None, truncated_question=None,t
         # Get the bot's response
         response = chain(
             {
-                "input_documents": documents["matches"],
-                "human_input": question,
-                "tone": tone,
-                "persona": persona,
-                "filenames": filenames,
-                "text_list": text_list,
+            "input_documents": documents["matches"],
+            "human_input": question,
+            "chat_history": chat_history_str, 
+            "tone": tone,
+            "persona": persona,
+            "filenames": filenames,
+            "text_list": text_list,
             },
             return_only_outputs=True,
             
         )
         # Print chat history
-        chat_history = chain.memory.buffer
-        print(f"Chat history: {chat_history}")
+        #chat_history = chain.memory.buffer
+        chat_history = chat_history_redis
+        print(f"Chat history redis {chat_history}")
         #print(f"Chat history: {chat_history}")
         # Extract the response text
         response_text = response['output_text']
         logger.info(f"RESPONSE: {response_text} " )
         # Return the JSON serialized response
-        return {"response": response_text}
-    
+        return response_text
     except openai.InvalidRequestError as e:
         error_message = str(e)
         if "maximum context length" in error_message:

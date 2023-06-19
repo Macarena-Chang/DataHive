@@ -11,6 +11,7 @@ def load_config(file_path: str) -> dict:
     
 config = load_config("config.yaml")
 
+openai.api_key = config["OPENAI_API_KEY"]
 
 @lru_cache(maxsize=128, typed=False)
 def get_embedding(text: str, model: str = "text-embedding-ada-002"):
@@ -66,7 +67,7 @@ def format_summary(summary: str) -> str:
 
 
 def search_and_chat(search_query: str) -> list:
-    OpenAI.api_key = config["OPENAI_API_KEY"]
+    openai.api_key = config["OPENAI_API_KEY"]
     pinecone.init(api_key=config["PINECONE_API_KEY"],
     environment=config["PINECONE_ENVIRONMENT"])
 

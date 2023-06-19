@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def search_documents_by_file_name(index, query_embedding_tuple, file_name, top_k=5, include_metadata=True):
     file_name_filter = None
-    if file_name is not None:
+    if file_name:
         file_name_filter = {"file_name": {"$eq": file_name}}
     response = query_pinecone(index, query_embedding_tuple, top_k=top_k, filter_dict=file_name_filter, include_metadata=include_metadata)
     logger.info(f"search_documents_by_file_name response ready: {response}")

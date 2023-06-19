@@ -1,23 +1,37 @@
-from fastapi import FastAPI, Request, File, UploadFile, Form, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from itsdangerous import SignatureExpired
-from pydantic import BaseModel
-from typing import List, Optional
-from ingest import ingest_files
-from retrieve import search_and_chat
-from chat_with_data import chat_ask_question
-from summary import summarize
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
-from fastapi import Depends
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
-import redis.asyncio as redis
 import json
 import os
 import yaml
+from datetime import datetime, timedelta
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi_limiter import FastAPILimiter
+from fastapi_limiter.depends import RateLimiter
+from ingest import ingest_files
+from itsdangerous import SignatureExpired
+from jose import JWTError, jwt
+from models import User, UserTable, UserIn, UserInDB, UserOut, UserFile
+from passlib.context import CryptContext
+from pydantic import BaseModel
+from retrieve import search_and_chat
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from starlette.websockets import WebSocket as StarletteWebSocket
+from summary import summarize
+from token_service import create_token, verify_token
+from typing import Annotated, Dict, List, Optional
+from database import SessionLocal
+from chat_with_data import chat_ask_question
+from email_service import send_verification_email
+from db import add_file_to_user, get_user_files
+from fastapi import WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocket
+from redis import asyncio as redis
+from chat_utils import limit_chat_history
+
 
 app = FastAPI()
 
@@ -41,7 +55,12 @@ def load_config(file_path: str) -> dict:
         return yaml.safe_load(config_file)
 config = load_config("config.yaml")
 
-
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 # Mount static files and templates
@@ -61,16 +80,25 @@ class DeleteRequest(BaseModel):
 
 class SummaryRequest(BaseModel):
     text: str
+    
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
-# Define endpoints
-@app.get("/", response_class=HTMLResponse)
+
+class TokenData(BaseModel):
+    username: str | None = None
+    
+##### ENDPOINTS #####
+""" @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/chat", response_class=HTMLResponse, status_code=200)
 def chat(request: Request):
     return templates.TemplateResponse("chat.html", {"request": request})
-
+"""
+##### UPLOAD FILE #####
 @app.post("/upload")
 async def upload(files: List[UploadFile] = File(...)):
     message = None
@@ -86,7 +114,7 @@ async def upload(files: List[UploadFile] = File(...)):
         ingest_files(file_paths)
         message = "File uploaded and ingested successfully."
     return {"message": message}
-
+##### SEARCH (Outside chat) #####
 @app.post("/search")
 def search(request: Request, search_query: SearchQuery):
     results = []
@@ -94,16 +122,7 @@ def search(request: Request, search_query: SearchQuery):
         results = search_and_chat(search_query.search_query)
     return {"results": results}
 
-@app.post("/chat_question")
-def chat_ask(chat_input: ChatInput):
-    try:
-        response = chat_ask_question(chat_input.user_input, chat_input.file_name)
-        return response
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Unable to process the request.")
-
+##### Get filenames (to populate dropdown) #####
 @app.get("/filenames_json")
 async def serve_filenames_json():
     with open("filenames.json", "r") as file:
@@ -113,6 +132,7 @@ async def serve_filenames_json():
     print(file_names) 
     return JSONResponse(content=file_names)
 
+##### DELETE FILE #####
 @app.post("/delete")
 async def delete_file(request: Request, delete_request: DeleteRequest):
     message = None
@@ -135,10 +155,11 @@ async def delete_file(request: Request, delete_request: DeleteRequest):
         message = "File deletion not implemented yet."
     return templates.TemplateResponse("index.html", {"request": request, "message": message})
 
-@app.get("/summary", response_class=HTMLResponse, status_code=200)
+""" @app.get("/summary", response_class=HTMLResponse, status_code=200)
 def chat(request: Request):
     return templates.TemplateResponse("summary.html", {"request": request})
-
+"""
+##### GET SUMMARY ##### 
 @app.post("/summary")
 def summary(request: Request, background_tasks: BackgroundTasks, summary_request: SummaryRequest):
     summary = None
@@ -147,66 +168,28 @@ def summary(request: Request, background_tasks: BackgroundTasks, summary_request
         background_tasks.add_task(summarize, summary_request.text)
     return JSONResponse(content={"summary": summary})
 
-
-
-
 ################################################################
 ### AUTHENTICATION ###
 ################################################################
-from datetime import datetime, timedelta
-from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from pydantic import BaseModel
-from database import SessionLocal
-from models import User, UserTable,UserIn, UserInDB, UserOut
-from fastapi import Depends
-from sqlalchemy.orm import Session
-from token_service import create_token, verify_token
-from email_service import send_verification_email
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        
-# to get a string like this run:
+# to get string like this run:
 # openssl rand -hex 32
 SECRET_KEY = config["SECRET_KEY"]
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
-
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
-
 
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-
 def get_user(db: Session, username: str):
     return db.query(UserTable).filter(UserTable.username == username).first()
-
 
 def authenticate_user(db: Session, username: str, password: str):
     user = get_user(db, username)
@@ -218,8 +201,6 @@ def authenticate_user(db: Session, username: str, password: str):
     if user.is_verified != True:raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED,detail= "Account Not Verified")
     return user
 
-
-
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -229,7 +210,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)], 
@@ -253,8 +233,7 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-
-
+#checks if authenticated user is active (checks disabled attribute)
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]
 ):
@@ -262,6 +241,7 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+##### LOGIN #####
 @app.post("/login",dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -280,7 +260,6 @@ async def login_for_access_token(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-
 @app.get("/users/me/", response_model=UserOut)
 async def read_users_me(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
@@ -288,19 +267,52 @@ async def read_users_me(
 ):
     return current_user.to_dict()
 
-
 #REDIS / LIMITER
+##### REDIS  connection established when app starts up #####
 @app.on_event("startup")
 async def startup():
-    r = redis.from_url(config["REDIS_URL"], encoding="utf8")
-    await FastAPILimiter.init(r)
+    global redis_connection
+    redis_connection = await redis.from_url("redis://localhost")
+    await FastAPILimiter.init(redis_connection)
 
-## REGISTER
-from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
-from models import UserTable, UserIn, UserOut
+async def get_redis():
+    global redis_connection
+    return redis_connection
 
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
 
+    async def connect(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        self.active_connections[user_id] = websocket
+
+    def disconnect(self, user_id: str):
+        self.active_connections.pop(user_id, None)
+
+    async def send_message(self, message: str, user_id: str):
+        ws = self.active_connections.get(user_id)
+        if ws:
+            await ws.send_text(message)
+
+manager = ConnectionManager()
+
+""" r = redis.from_url(config["REDIS_URL"], encoding="utf8") """
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Get the global Redis connection and use it
+            async with get_redis() as r:
+                await r.lpush(f"chat:{user_id}", data)  # Store message in Redis
+            """ r.push(f"chat:{user_id}", data) """  # Store message in Redis
+            await manager.send_message(f"Message text was: {data}", user_id)
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+        
+##### REGISTER #####
 @app.post("/register", response_model=UserOut)
 async def create_user(user: UserIn, db: Session = Depends(get_db)):
     hashed_password = get_password_hash(user.password)
@@ -314,7 +326,7 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
     db.add(db_user)
     try:
         db.commit()
-        # After commiting the user to the database, we then create a token for the user and send a verification email
+        # After commiting the user to the database create a token for the user and send verification email
         token = create_token({"user_id": db_user.user_id})
         await send_verification_email(db_user.email, token)
     except IntegrityError:
@@ -322,7 +334,7 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Username or Email already registered")
     return db_user.to_dict()
 
-## VERIFICATION 
+##### VERIFICATION ##### 
 @app.get("/verify")
 def verify_endpoint(token: str, db: Session = Depends(get_db)):
     try:
@@ -338,6 +350,16 @@ def verify_endpoint(token: str, db: Session = Depends(get_db)):
     user.is_verified = True
     db.commit()
     return {"detail": "User successfully verified"}
+
+# Borrar ?
+""" from fastapi import WebSocket
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_text()
+        await websocket.send_text(f"Message text was: {data}")
+ """
 ## SOCIAL LOGIN
 """ from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -360,11 +382,6 @@ def authentication(request: Request,token:str):
 def check(request:Request):
     return "hi "+ str(request.session.get('user')['email']) """
 
-from models import UserFile , File
-from fastapi import APIRouter
-from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException, status
-from db import add_file_to_user, get_user_files
 #router = APIRouter()
 @app.post("/users/addfile/")
 async def add_file_to_user_endpoint(
@@ -376,7 +393,44 @@ async def add_file_to_user_endpoint(
 
 @app.get("/users/me/files/")
 async def get_user_files_endpoint(
-    current_user: Annotated[UserInDB, Depends(get_current_active_user)],
+    current_user: Annotated[UserInDB, Depends(get_current_active_user)] = None,
     db: Session = Depends(get_db)
 ):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="User is not authenticated")
     return get_user_files(db, current_user.user_id)
+
+# REDIS 
+async def get_chat_history_redis(user_id: str):
+    r = await get_redis()
+    history = await r.lrange(f'chat:{user_id}', 0, -1)
+    if history is None:
+        return []
+    print(history)
+    return [message.decode('utf-8') for message in history]
+
+@app.post("/chat_question")
+async def chat_ask(chat_input: ChatInput, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        user_id = current_user.user_id
+        print(user_id)
+        r = await get_redis()
+        # Fetch chat history
+        chat_history_redis = await r.lrange(f'chat:{user_id}', 0, -1)
+        
+        chat_history_redis = [json.loads(message.decode('utf-8')) for message in chat_history_redis] 
+        # Generate response from language model
+        response = chat_ask_question(chat_input.user_input, chat_history_redis, chat_input.file_name)
+
+        # Limit chat history to a certain number of tokens
+        chat_history_redis = await limit_chat_history(chat_history_redis, response)
+        
+        # Store bot's response in Redis
+        response_str = json.dumps({"user": "bot", "message": response})
+        await r.rpush(f'chat:{user_id}', response_str)
+
+        return  {"response": response}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Unable to process the request.")
