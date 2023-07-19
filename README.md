@@ -34,7 +34,10 @@ Tech stack:
 - React
 - Bootstrap
 
-Frontend Repository can be found here.
+
+Frontend Repository can be found [here](https://github.com/Macarena-Chang/DataHive-Frontend).
+
+
 
 ## Demo
 
