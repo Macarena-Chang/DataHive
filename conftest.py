@@ -13,6 +13,6 @@ def token(client):
         "username": "@mail.com",
         "password": "",
     }
-    response = client.post("/login", data=user_credentials)
+    response = client.post("/users/login", data=user_credentials)
     assert response.status_code == 200
     return response.json()["access_token"]

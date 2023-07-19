@@ -40,7 +40,7 @@ def test_login():
         "username": "@mail.com",
         "password": "",
     }
-    response = client.post("/login", data=user_credentials)
+    response = client.post("/users/login", data=user_credentials)
     assert response.status_code == 200
     assert "access_token" in response.json()
     assert response.json()["token_type"] == "bearer"
@@ -50,7 +50,7 @@ def test_login():
         "username": "macarena@mail.com",
         "password": "wrongpassword",
     }
-    response = client.post("/login", data=user_credentials)
+    response = client.post("/users/login", data=user_credentials)
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
 
@@ -59,6 +59,6 @@ def test_login():
         "username": "nonexistentuser@mail.com",
         "password": "secret",
     }
-    response = client.post("/login", data=user_credentials)
+    response = client.post("/users/login", data=user_credentials)
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]

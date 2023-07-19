@@ -89,18 +89,10 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str | None = None
     
-##### ENDPOINTS #####
-""" @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.get("/chat", response_class=HTMLResponse, status_code=200)
-def chat(request: Request):
-    return templates.TemplateResponse("chat.html", {"request": request})
-"""
-##### UPLOAD FILE #####
-@app.post("/upload")
-async def upload(files: List[UploadFile] = File(...)):
+##### RESOURCE: FILES #####
+@app.post("/files")
+async def upload_files(files: List[UploadFile] = File(...)):
     message = None
     file_paths = []
     for uploaded_file in files:
@@ -115,16 +107,16 @@ async def upload(files: List[UploadFile] = File(...)):
         message = "File uploaded and ingested successfully."
     return {"message": message}
 ##### SEARCH (Outside chat) #####
-@app.post("/search")
+""" @app.post("/search")
 def search(request: Request, search_query: SearchQuery):
     results = []
     if search_query.search_query:
         results = search_and_chat(search_query.search_query)
     return {"results": results}
-
+ """
 ##### Get filenames (to populate dropdown) #####
-@app.get("/filenames_json")
-async def serve_filenames_json():
+@app.get("/files")
+async def get_file_names():
     with open("filenames.json", "r") as file:
         file_data = json.load(file)
     print("Filenames")    
@@ -133,41 +125,24 @@ async def serve_filenames_json():
     return JSONResponse(content=file_names)
 
 ##### DELETE FILE #####
-@app.post("/delete")
-async def delete_file(request: Request, delete_request: DeleteRequest):
-    message = None
-    file_name = delete_request.file_name
-    if file_name:
-        # TODO: Implement search_documents_by_file_name, delete_document_by_unique_id, and remove_file_from_filenames_json
-        # response = search_documents_by_file_name(index, query_embedding_tuple, file_name, top_k=5, include_metadata=True)
-        #
-        # if len(response) == 0:
-        #     message = "File not found."
-        # elif len(response) == 1:
-        #     unique_id = response[0][0]
-        #     delete_document_by_unique_id(index, unique_id)
-        #     remove_file_from_filenames_json(file_name)
-        #     message = "File deleted successfully."
-        # else:
-        #     message = "Multiple files with the same name were found. Please provide more information to delete the correct file."
-        #     for r in response:
-        #         message += f"\nFile: {r[1]['metadata']['file_name']} - Uploaded on: {r[1]['metadata']['upload_date']}"
-        message = "File deletion not implemented yet."
-    return templates.TemplateResponse("index.html", {"request": request, "message": message})
+@app.post("/files/delete/{filename}")
+async def delete_file(filename: str):
+    message = "File deletion not implemented yet."
+    return JSONResponse(content={"message": message}, status_code=200)  # Change status code as per operation result
 
 """ @app.get("/summary", response_class=HTMLResponse, status_code=200)
 def chat(request: Request):
     return templates.TemplateResponse("summary.html", {"request": request})
 """
 ##### GET SUMMARY ##### 
-@app.post("/summary")
+""" @app.post("/summary")
 def summary(request: Request, background_tasks: BackgroundTasks, summary_request: SummaryRequest):
     summary = None
     if summary_request.text:
         summary = summarize(summary_request.text)
         background_tasks.add_task(summarize, summary_request.text)
     return JSONResponse(content={"summary": summary})
-
+ """
 ################################################################
 ### AUTHENTICATION ###
 ################################################################
@@ -180,7 +155,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -242,8 +217,8 @@ async def get_current_active_user(
     return current_user
 
 ##### LOGIN #####
-@app.post("/login",dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
-async def login_for_access_token(
+@app.post("/users/login",dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
+async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
 ):
@@ -351,15 +326,7 @@ def verify_endpoint(token: str, db: Session = Depends(get_db)):
     db.commit()
     return {"detail": "User successfully verified"}
 
-# Borrar ?
-""" from fastapi import WebSocket
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    while True:
-        data = await websocket.receive_text()
-        await websocket.send_text(f"Message text was: {data}")
- """
+
 ## SOCIAL LOGIN
 """ from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -409,7 +376,7 @@ async def get_chat_history_redis(user_id: str):
     print(history)
     return [message.decode('utf-8') for message in history]
 
-@app.post("/chat_question")
+@app.post("/users/me/chat/responses")
 async def chat_ask(chat_input: ChatInput, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         user_id = current_user.user_id
@@ -434,3 +401,4 @@ async def chat_ask(chat_input: ChatInput, current_user: User = Depends(get_curre
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail="Unable to process the request.")
+
