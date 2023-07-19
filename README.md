@@ -1,6 +1,7 @@
 # DataHive: Your Own Knowledge Base + AI GPT model
 
 A web application that transforms the way you interact with your data.Allows you to upload files and use it as knowledge base for your interactions with AI GPT model.
+
 ## Key Features
 
 ### Interactive Data Chat
@@ -9,11 +10,11 @@ DataHive's standout feature is the ability to "chat" with your data. By utilizin
 
 ### Multiple Data Upload
 
-DataHive supports the upload of multiple files at once, accepting DOC, TXT, and PDF file formats. 
+DataHive supports the upload of multiple files at once, accepting DOC, TXT, and PDF file formats.
 
 ### Secure User Authentication
 
- JWT for user authentication and an email service for account verification.
+JWT for user authentication and an email service for account verification.
 
 ## Technologies
 
@@ -34,10 +35,6 @@ Tech stack:
 - React
 - Bootstrap
 
-
 Frontend Repository can be found [here](https://github.com/Macarena-Chang/DataHive-Frontend).
 
-
-
 ## Demo
-
