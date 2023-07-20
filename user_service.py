@@ -1,9 +1,10 @@
+from fastapi import HTTPException
 from itsdangerous import SignatureExpired
+from sqlalchemy.orm import Session
+
 from email_service import send_verification_email
 from models import UserIn
 from token_service import create_token, verify_token
-from sqlalchemy.orm import Session
-from fastapi import HTTPException
 
 
 def register_user(user: UserIn, db: Session):

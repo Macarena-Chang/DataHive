@@ -1,23 +1,22 @@
 # from dotenv import dotenv_values
 import logging
-import yaml
+from typing import Dict, List
+
 import openai
 import pinecone
-from langchain.chains.question_answering import load_qa_chain
-from langchain.prompts import PromptTemplate
-from langchain.memory import ConversationBufferMemory
-
-# from flask import jsonify, make_response
-# from flask import request
-from retrieve import get_embedding
-from retrieve import query_pinecone
-from langchain.chat_models import ChatOpenAI
-from langchain.llms import OpenAI
-from doc_utils import search_documents_by_file_name, fetchTopK
-
+import yaml
 # config = dotenv_values(".env")
 from fastapi import HTTPException
-from typing import List, Dict
+from langchain.chains.question_answering import load_qa_chain
+from langchain.chat_models import ChatOpenAI
+from langchain.llms import OpenAI
+from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
+
+from doc_utils import fetchTopK, search_documents_by_file_name
+# from flask import jsonify, make_response
+# from flask import request
+from retrieve import get_embedding, query_pinecone
 
 
 def load_config(file_path: str) -> dict:

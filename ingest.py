@@ -1,19 +1,21 @@
-from langchain.llms import OpenAI
-import pinecone
-import openai
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-import logging
-import uuid
 import json
+import logging
+import re
+import uuid
+import zipfile
+from typing import List
+from xml.etree import ElementTree as ET
+
 import docx
 import nltk
-import zipfile
+import openai
+import pinecone
 import yaml
-from xml.etree import ElementTree as ET
-import re
+from langchain.llms import OpenAI
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from nltk.tokenize import TextTilingTokenizer
 from pdfminer.high_level import extract_text
-from typing import List
+
 from doc_utils import update_filenames_json
 
 # from dotenv import dotenv_values

@@ -1,54 +1,40 @@
 import json
 import os
-import yaml
 from datetime import datetime, timedelta
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    FastAPI,
-    File,
-    Form,
-    HTTPException,
-    Request,
-    UploadFile,
-    WebSocket,
-    status,
-)
+from typing import Annotated, Dict, List, Optional
+
+import yaml
+from fastapi import (APIRouter, BackgroundTasks, Depends, FastAPI, File, Form,
+                     HTTPException, Request, UploadFile, WebSocket,
+                     WebSocketDisconnect, status)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import (
-    FileResponse,
-    HTMLResponse,
-    JSONResponse,
-    PlainTextResponse,
-)
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
+                               PlainTextResponse)
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
-from ingest import ingest_files
 from itsdangerous import SignatureExpired
 from jose import JWTError, jwt
-from models import User, UserTable, UserIn, UserInDB, UserOut, UserFile
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from retrieve import search_and_chat
+from redis import asyncio as redis
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from starlette.websockets import WebSocket
 from starlette.websockets import WebSocket as StarletteWebSocket
+
+from chat_utils import limit_chat_history
+from chat_with_data import chat_ask_question
+from database import SessionLocal
+from db import add_file_to_user, get_user_files
+from email_service import send_verification_email
+from ingest import ingest_files
+from models import User, UserFile, UserIn, UserInDB, UserOut, UserTable
+from retrieve import search_and_chat
 from summary import summarize
 from token_service import create_token, verify_token
-from typing import Annotated, Dict, List, Optional
-from database import SessionLocal
-from chat_with_data import chat_ask_question
-from email_service import send_verification_email
-from db import add_file_to_user, get_user_files
-from fastapi import WebSocket, WebSocketDisconnect
-from starlette.websockets import WebSocket
-from redis import asyncio as redis
-from chat_utils import limit_chat_history
-
 from user_routes import router as user_router
 
 app = FastAPI()

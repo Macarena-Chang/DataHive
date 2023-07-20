@@ -1,10 +1,8 @@
-from sqlalchemy.orm import Session
-from models import UserTable, UserIn, UserOut
-
-from sqlalchemy.exc import IntegrityError
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from models import UserTable, UserFile
+
+from models import UserFile, UserIn, UserOut, UserTable
 
 
 def get_user(db: Session, username: str):

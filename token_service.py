@@ -1,4 +1,5 @@
 from itsdangerous import URLSafeTimedSerializer
+
 from email_config import settings
 
 s = URLSafeTimedSerializer(settings.SECRET_KEY)

@@ -1,15 +1,15 @@
-from unittest.mock import patch
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import sessionmaker, Session
-from models import UserTable
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from app import app
-from models import Base
 import logging
 from datetime import datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
+
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
+
+from app import app
 from email_service import send_verification_email
+from models import Base, UserTable
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)

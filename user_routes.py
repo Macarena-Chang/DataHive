@@ -1,21 +1,22 @@
-import yaml
 from datetime import datetime, timedelta
+from typing import Annotated, Optional
+
+import yaml
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi_limiter.depends import RateLimiter
 from itsdangerous import SignatureExpired
 from jose import JWTError, jwt
-from models import User, UserTable, UserIn, UserInDB, UserOut
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from token_service import create_token, verify_token
-from typing import Annotated, Optional
+
 from database import SessionLocal
 from email_service import send_verification_email
-from fastapi import APIRouter
+from models import User, UserIn, UserInDB, UserOut, UserTable
+from token_service import create_token, verify_token
 
 router = APIRouter()
 

@@ -1,8 +1,10 @@
-from langchain.llms import OpenAI
-from langchain.callbacks import get_openai_callback
 import json
-from config import load_config
 import logging
+
+from langchain.callbacks import get_openai_callback
+from langchain.llms import OpenAI
+
+from config import load_config
 
 # === CONFIG ===#
 config = load_config("config.yaml")
