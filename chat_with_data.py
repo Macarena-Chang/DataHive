@@ -58,8 +58,7 @@ chain = load_qa_chain(
             "filenames",
             "text_list",
         ],
-        template=
-        """You are a chatbot who acts like {persona}, having a conversation with a student.
+        template="""You are a chatbot who acts like {persona}, having a conversation with a student.
 
 Given the following extracted parts of a long document answer the question in the tone {tone}.
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
@@ -171,15 +170,13 @@ def chat_ask_question(
                 logger.error(f"Error while processing request: {e}")
                 raise HTTPException(
                     status_code=422,
-                    detail=
-                    "The input is too long. Please reduce the length of the messages.",
+                    detail="The input is too long. Please reduce the length of the messages.",
                 )
         else:
             logger.error(f"Invalid request error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=
-                f"Unable to process the request due to an invalid request error: {error_message}",
+                detail=f"Unable to process the request due to an invalid request error: {error_message}",
             )
 
     except Exception as e:
