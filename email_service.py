@@ -1,6 +1,4 @@
-from fastapi_mail import ConnectionConfig
-from fastapi_mail import FastMail
-from fastapi_mail import MessageSchema
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema
 
 from email_config import settings
 

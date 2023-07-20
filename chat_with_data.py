@@ -1,7 +1,6 @@
 # from dotenv import dotenv_values
 import logging
-from typing import Dict
-from typing import List
+from typing import Dict, List
 
 import openai
 import pinecone
@@ -13,10 +12,8 @@ from langchain.llms import OpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 
-from doc_utils import fetchTopK
-from doc_utils import search_documents_by_file_name
-from retrieve import get_embedding
-from retrieve import query_pinecone
+from doc_utils import fetchTopK, search_documents_by_file_name
+from retrieve import get_embedding, query_pinecone
 
 # config = dotenv_values(".env")
 # from flask import jsonify, make_response

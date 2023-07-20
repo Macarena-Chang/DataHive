@@ -1,20 +1,13 @@
-from datetime import datetime
-from datetime import timedelta
-from typing import Annotated
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Annotated, Optional
 
 import yaml
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import HTTPException
-from fastapi import status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi_limiter.depends import RateLimiter
 from itsdangerous import SignatureExpired
-from jose import jwt
-from jose import JWTError
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
@@ -22,13 +15,8 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from email_service import send_verification_email
-from models import User
-from models import UserIn
-from models import UserInDB
-from models import UserOut
-from models import UserTable
-from token_service import create_token
-from token_service import verify_token
+from models import User, UserIn, UserInDB, UserOut, UserTable
+from token_service import create_token, verify_token
 
 router = APIRouter()
 
