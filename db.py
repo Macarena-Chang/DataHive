@@ -39,13 +39,11 @@ def add_file_to_user(db: Session, user_id: str, file_id: str):
         raise HTTPException(status_code=404, detail="File not found")
 
     # Check if the user has already been assigned the file
-    user_file = (
-        db.query(UserFile)
-        .filter(UserFile.user_id == user_id, UserFile.file_id == file_id)
-        .first()
-    )
+    user_file = (db.query(UserFile).filter(
+        UserFile.user_id == user_id, UserFile.file_id == file_id).first())
     if user_file:
-        raise HTTPException(status_code=400, detail="File already assigned to the user")
+        raise HTTPException(status_code=400,
+                            detail="File already assigned to the user")
 
     db_user_file = UserFile(user_id=user_id, file_id=file_id)
     db.add(db_user_file)

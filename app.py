@@ -200,16 +200,17 @@ def get_user(db: Session, username: str):
     return db.query(UserTable).filter(UserTable.username == username).first()
 
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
-):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
+                           db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, config["SECRET_KEY"], algorithms=[ALGORITHM])
+        payload = jwt.decode(token,
+                             config["SECRET_KEY"],
+                             algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -226,8 +227,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)]
-):
+        current_user: Annotated[User, Depends(get_current_user)]):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -248,6 +248,7 @@ async def get_redis():
 
 
 class ConnectionManager:
+
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
 
@@ -284,20 +285,23 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 
 @app.post("/users/addfile/")
 async def add_file_to_user_endpoint(
-    file_id: str,
-    current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db),
+        file_id: str,
+        current_user: Annotated[UserInDB,
+                                Depends(get_current_active_user)],
+        db: Session = Depends(get_db),
 ):
     return add_file_to_user(db, current_user.user_id, file_id)
 
 
 @app.get("/users/me/files/")
 async def get_user_files_endpoint(
-    current_user: Annotated[UserInDB, Depends(get_current_active_user)] = None,
-    db: Session = Depends(get_db),
+        current_user: Annotated[UserInDB,
+                                Depends(get_current_active_user)] = None,
+        db: Session = Depends(get_db),
 ):
     if not current_user:
-        raise HTTPException(status_code=401, detail="User is not authenticated")
+        raise HTTPException(status_code=401,
+                            detail="User is not authenticated")
     return get_user_files(db, current_user.user_id)
 
 
@@ -315,9 +319,9 @@ async def get_chat_history_redis(user_id: str):
 
 @app.post("/users/me/chat/responses")
 async def chat_ask(
-    chat_input: ChatInput,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+        chat_input: ChatInput,
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
 ):
     try:
         user_id = current_user.user_id
@@ -327,15 +331,16 @@ async def chat_ask(
         chat_history_redis = await r.lrange(f"chat:{user_id}", 0, -1)
 
         chat_history_redis = [
-            json.loads(message.decode("utf-8")) for message in chat_history_redis
+            json.loads(message.decode("utf-8"))
+            for message in chat_history_redis
         ]
         # Generate response from language model
-        response = chat_ask_question(
-            chat_input.user_input, chat_history_redis, chat_input.file_name
-        )
+        response = chat_ask_question(chat_input.user_input, chat_history_redis,
+                                     chat_input.file_name)
 
         # Limit chat history to a certain number of tokens
-        chat_history_redis = await limit_chat_history(chat_history_redis, response)
+        chat_history_redis = await limit_chat_history(chat_history_redis,
+                                                      response)
 
         # Store bot's response in Redis
         response_str = json.dumps({"user": "bot", "message": response})
@@ -345,4 +350,5 @@ async def chat_ask(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Unable to process the request.")
+        raise HTTPException(status_code=500,
+                            detail="Unable to process the request.")
