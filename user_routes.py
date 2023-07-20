@@ -22,25 +22,35 @@ router = APIRouter()
 # User-Routes
 
 # Load configuration from YAML file
+
+
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
         return yaml.safe_load(config_file)
+
+
 config = load_config("config.yaml")
 
 # Define input models for endpoints
+
+
 class ChatInput(BaseModel):
     user_input: str
     file_name: Optional[str] = None
 
+
 class SearchQuery(BaseModel):
     search_query: str
+
 
 class DeleteRequest(BaseModel):
     file_name: str
 
+
 class SummaryRequest(BaseModel):
     text: str
-    
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -49,13 +59,13 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str | None = None
 
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
 
 
 ### AUTHENTICATION ###
@@ -68,14 +78,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
+
 
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+
 def get_user(db: Session, username: str):
     return db.query(UserTable).filter(UserTable.username == username).first()
+
 
 def authenticate_user(db: Session, username: str, password: str):
     user = get_user(db, username)
@@ -83,9 +97,12 @@ def authenticate_user(db: Session, username: str, password: str):
         return False
     if not verify_password(password, user.hashed_password):
         return False
-    
-    if user.is_verified != True:raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED,detail= "Account Not Verified")
+
+    if user.is_verified != True:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Account Not Verified")
     return user
+
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
@@ -97,8 +114,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], 
+    token: Annotated[str, Depends(oauth2_scheme)],
     db: Session = Depends(get_db)
 ):
     credentials_exception = HTTPException(
@@ -107,7 +125,8 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, config["SECRET_KEY"], algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token, config["SECRET_KEY"], algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -119,7 +138,9 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-#checks if authenticated user is active (checks disabled attribute)
+# checks if authenticated user is active (checks disabled attribute)
+
+
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]
 ):
@@ -137,7 +158,9 @@ async def read_users_me(
     return current_user.to_dict()
 
 ##### LOGIN #####
-@router.post("/users/login",dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
+
+
+@router.post("/users/login", dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
@@ -175,12 +198,15 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
         await send_verification_email(db_user.email, token)
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Username or Email already registered")
-    
-    # Return 200 status code verify email message and user info 
+        raise HTTPException(
+            status_code=400, detail="Username or Email already registered")
+
+    # Return 200 status code verify email message and user info
     return JSONResponse(status_code=200, content={"detail": "User registered successfully. Please verify your email.", "user": db_user.to_dict()})
 
-##### ACCOUNT EMAIL VERIFICATION ##### 
+##### ACCOUNT EMAIL VERIFICATION #####
+
+
 @router.get("/verify")
 def verify(token: str, db: Session = Depends(get_db)):
     try:
@@ -196,4 +222,3 @@ def verify(token: str, db: Session = Depends(get_db)):
     user.is_verified = True
     db.commit()
     return {"detail": "User successfully verified"}
-

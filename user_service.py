@@ -5,10 +5,12 @@ from token_service import create_token, verify_token
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
+
 def register_user(user: UserIn, db: Session):
     # Your user registration logic here
     token = create_token({"user_id": user.id})
     send_verification_email(user.email, token)
+
 
 def verify_user(token: str):
     try:

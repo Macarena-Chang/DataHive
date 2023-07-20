@@ -15,16 +15,17 @@ from nltk.tokenize import TextTilingTokenizer
 from pdfminer.high_level import extract_text
 from typing import List
 from doc_utils import update_filenames_json
-#from dotenv import dotenv_values
+# from dotenv import dotenv_values
 # nltk.download("stopwords")
 # nltk.download("punkt")
 
 
-#config = dotenv_values(".env")
+# config = dotenv_values(".env")
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
         return yaml.safe_load(config_file)
-    
+
+
 config = load_config("config.yaml")
 
 # Set up logging
@@ -33,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 # 3200 is aprox 1042 tokens
 # Text Tiling
+
+
 def split_text_data(text: str, max_chars: int = 3200) -> list:
     # initialize TextTilingTokenizer
     ttt = TextTilingTokenizer()
@@ -96,9 +99,11 @@ def store_embeddings(chunks: list, embeddings: list, file_unique_id: str, pineco
     id_to_text_mapping = {}
     for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
         chunk_unique_id = f"{file_unique_id}_{idx}"
-        metadata = {'chunk': idx, 'text': chunk,'file_id': file_unique_id, 'file_name': file_name}
+        metadata = {'chunk': idx, 'text': chunk,
+                    'file_id': file_unique_id, 'file_name': file_name}
         id_to_text_mapping[chunk_unique_id] = metadata
-        pinecone_store.upsert(vectors=zip([chunk_unique_id], [embedding], [metadata]))
+        pinecone_store.upsert(vectors=zip(
+            [chunk_unique_id], [embedding], [metadata]))
     return id_to_text_mapping
 
 
@@ -160,17 +165,15 @@ def ingest_files(file_paths: List[str]):
         chunks = split_text_data(text)
 
         file_unique_id = str(uuid.uuid4())
-        
+
         file_name = file_path
-        
+
         # Update the filenames.json file with the new file name and its unique ID
         update_filenames_json(file_name, file_unique_id)
         logger.info(f"Update filenames.json: {file_name} { file_unique_id}")
-        
+
         pinecone_store = pinecone.Index(config["PINECONE_INDEX_NAME"])
         embeddings = generate_embeddings(chunks)
-
-        
 
         id_to_text_mapping = store_embeddings(
             chunks, embeddings, file_unique_id, pinecone_store, file_name)
@@ -179,5 +182,5 @@ def ingest_files(file_paths: List[str]):
     return {"message": "File processed successfully.", "file_unique_id": file_unique_id}
 
 
-#file_paths = ['demofile6-pythoninputoutput.txt']
-#ingest_files(file_paths)
+# file_paths = ['demofile6-pythoninputoutput.txt']
+# ingest_files(file_paths)

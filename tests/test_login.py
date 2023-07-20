@@ -8,13 +8,14 @@ from fastapi.testclient import TestClient
 from fastapi_limiter import FastAPILimiter
 from sqlalchemy import create_engine
 from app import app
-from models import Base 
+from models import Base
 import redis
 
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+TestingSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,16 +25,19 @@ REDIS_URL = "redis://localhost:6380"
 
 client = TestClient(app)
 
+
 @pytest.fixture(scope="module", autouse=True)
 def mock_limiter():
     with patch("fastapi_limiter.depends.FastAPILimiter", new_callable=AsyncMock):
         yield
-        
+
+
 def setup_module(module):
     # run before the first test
     r = redis.from_url(REDIS_URL, encoding="utf8")
     FastAPILimiter.init(r)
-    
+
+
 def test_login():
     # Test successful login
     user_credentials = {

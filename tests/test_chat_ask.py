@@ -8,6 +8,7 @@ def test_chat_question(token, client):
         "user_input": "Hello, how are you?",
         "file_name": ""
     }
-    response = client.post("/users/me/chat/responses", headers=headers, json=chat_input)
+    response = client.post("/users/me/chat/responses",
+                           headers=headers, json=chat_input)
     assert response.status_code == 200
     assert "response" in response.json()
