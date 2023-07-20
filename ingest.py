@@ -71,7 +71,7 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
                 # split the chunk into smaller subchunks
                 num_subchunks = (len(chunk) // max_chars) + 1
                 subchunks = [
-                    chunk[j * max_chars:(j + 1) * max_chars]
+                    chunk[j * max_chars : (j + 1) * max_chars]
                     for j in range(num_subchunks)
                 ]
                 chunks.pop(i)
@@ -83,8 +83,9 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
         print(f"TextTiling exception: {e}")
 
         # Fallback to RecursiveCharacterTextSplitter
-        char_text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000,
-                                                            chunk_overlap=200)
+        char_text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000, chunk_overlap=200
+        )
         chunks = char_text_splitter.split_text(text)
         print("RecursiveCharacterTextSplitter")
         print(chunks)
@@ -94,14 +95,14 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
 def generate_embeddings(chunks: list) -> list:
     embeddings = []
     for chunk in chunks:
-        response = openai.Embedding.create(input=chunk,
-                                           model="text-embedding-ada-002")
+        response = openai.Embedding.create(input=chunk, model="text-embedding-ada-002")
         embeddings.append(response["data"][0]["embedding"])
     return embeddings
 
 
-def store_embeddings(chunks: list, embeddings: list, file_unique_id: str,
-                     pinecone_store, file_name) -> dict:
+def store_embeddings(
+    chunks: list, embeddings: list, file_unique_id: str, pinecone_store, file_name
+) -> dict:
     id_to_text_mapping = {}
     for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
         chunk_unique_id = f"{file_unique_id}_{idx}"
@@ -112,8 +113,7 @@ def store_embeddings(chunks: list, embeddings: list, file_unique_id: str,
             "file_name": file_name,
         }
         id_to_text_mapping[chunk_unique_id] = metadata
-        pinecone_store.upsert(
-            vectors=zip([chunk_unique_id], [embedding], [metadata]))
+        pinecone_store.upsert(vectors=zip([chunk_unique_id], [embedding], [metadata]))
     return id_to_text_mapping
 
 
@@ -144,19 +144,23 @@ def extract_text_from_docx(file_path: str) -> str:
         paragraphs = tree.findall(
             ".//w:p",
             namespaces={
-                "w":
-                "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             },
         )
 
         # Extract the text from the 'w:t' elements within each paragraph and join them with newline characters
-        text = "\n\n".join("".join(node.text for node in para.findall(
-            ".//w:t",
-            namespaces={
-                "w":
-                "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-            },
-        )) for para in paragraphs)
+        text = "\n\n".join(
+            "".join(
+                node.text
+                for node in para.findall(
+                    ".//w:t",
+                    namespaces={
+                        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                    },
+                )
+            )
+            for para in paragraphs
+        )
 
         # Replace carriage returns and line feeds with newline characters
         text = re.sub(r"\r|\f", "\n", text)
@@ -196,15 +200,12 @@ def ingest_files(file_paths: List[str]):
         pinecone_store = pinecone.Index(config["PINECONE_INDEX_NAME"])
         embeddings = generate_embeddings(chunks)
 
-        id_to_text_mapping = store_embeddings(chunks, embeddings,
-                                              file_unique_id, pinecone_store,
-                                              file_name)
+        id_to_text_mapping = store_embeddings(
+            chunks, embeddings, file_unique_id, pinecone_store, file_name
+        )
 
         save_mapping_to_file(id_to_text_mapping, f"{file_unique_id}.json")
-    return {
-        "message": "File processed successfully.",
-        "file_unique_id": file_unique_id
-    }
+    return {"message": "File processed successfully.", "file_unique_id": file_unique_id}
 
 
 # file_paths = ['demofile6-pythoninputoutput.txt']

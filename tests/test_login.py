@@ -15,9 +15,7 @@ from models import UserTable
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
-TestingSessionLocal = sessionmaker(autocommit=False,
-                                   autoflush=False,
-                                   bind=engine)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
 
@@ -29,8 +27,7 @@ client = TestClient(app)
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_limiter():
-    with patch("fastapi_limiter.depends.FastAPILimiter",
-               new_callable=AsyncMock):
+    with patch("fastapi_limiter.depends.FastAPILimiter", new_callable=AsyncMock):
         yield
 
 
