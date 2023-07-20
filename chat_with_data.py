@@ -34,9 +34,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Pinecone
-pinecone.init(
-    api_key=config["PINECONE_API_KEY"], environment=config["PINECONE_ENVIRONMENT"]
-)
+pinecone.init(api_key=config["PINECONE_API_KEY"],
+              environment=config["PINECONE_ENVIRONMENT"])
 index = pinecone.Index(config["PINECONE_INDEX_NAME"])
 
 tone = config["tone"]
@@ -47,9 +46,8 @@ logger.info("Initializing QA chain......")
 chain = load_qa_chain(
     ChatOpenAI(openai_api_key=config["OPENAI_API_KEY"]),
     chain_type="stuff",
-    memory=ConversationBufferMemory(
-        memory_key="chat_history_redis", input_key="human_input"
-    ),
+    memory=ConversationBufferMemory(memory_key="chat_history_redis",
+                                    input_key="human_input"),
     prompt=PromptTemplate(
         input_variables=[
             "chat_history",
@@ -60,7 +58,8 @@ chain = load_qa_chain(
             "filenames",
             "text_list",
         ],
-        template="""You are a chatbot who acts like {persona}, having a conversation with a student.
+        template=
+        """You are a chatbot who acts like {persona}, having a conversation with a student.
 
 Given the following extracted parts of a long document answer the question in the tone {tone}.
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
@@ -100,30 +99,30 @@ def chat_ask_question(
         file_name = file_name
         query_embeds = get_embedding(question)
 
-        documents = search_documents_by_file_name(
-            index, tuple(query_embeds), file_name, include_metadata=True
-        )
-
+        documents = search_documents_by_file_name(index,
+                                                  tuple(query_embeds),
+                                                  file_name,
+                                                  include_metadata=True)
         """ print(chat_history_redis)
         print(type(chat_history_redis)) """
         # Convert chat history from list of dicts to string
-        chat_history_str = "\n".join(
-            f'{msg["user"]}: {msg["message"]}' for msg in chat_history_redis
-        )
+        chat_history_str = "\n".join(f'{msg["user"]}: {msg["message"]}'
+                                     for msg in chat_history_redis)
 
         # print(query_pinecone.cache_info())
 
         # Log number of matching documents
-        logger.debug(f"Number of matching documents: {len(documents['matches'])}")
+        logger.debug(
+            f"Number of matching documents: {len(documents['matches'])}")
 
         # Extract the unique filenames from the matching documents
         filenames = get_unique_filenames(documents["matches"])
         logger.info(f"Unique source filenames: {filenames}")
 
         # Extract the relevant text from the matching documents (if truncated, remove truncation_step number of elements)
-        text_list = [
-            {"text": match["metadata"]["text"]} for match in documents["matches"]
-        ]
+        text_list = [{
+            "text": match["metadata"]["text"]
+        } for match in documents["matches"]]
 
         if truncation_step == 0:
             truncated_question = user_input
@@ -172,19 +171,22 @@ def chat_ask_question(
                 logger.error(f"Error while processing request: {e}")
                 raise HTTPException(
                     status_code=422,
-                    detail="The input is too long. Please reduce the length of the messages.",
+                    detail=
+                    "The input is too long. Please reduce the length of the messages.",
                 )
         else:
             logger.error(f"Invalid request error: {e}")
             raise HTTPException(
                 status_code=400,
-                detail=f"Unable to process the request due to an invalid request error: {error_message}",
+                detail=
+                f"Unable to process the request due to an invalid request error: {error_message}",
             )
 
     except Exception as e:
         # Log the error and return an error response
         logger.error(f"Error while processing request: {e}")
-        raise HTTPException(status_code=500, detail="Unable to process the request.")
+        raise HTTPException(status_code=500,
+                            detail="Unable to process the request.")
 
 
 def get_unique_filenames(matches):

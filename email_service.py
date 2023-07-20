@@ -14,7 +14,6 @@ conf = ConnectionConfig(
     MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
 )
 
-
 fm = FastMail(conf)
 
 

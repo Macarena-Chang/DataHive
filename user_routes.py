@@ -112,9 +112,8 @@ def authenticate_user(db: Session, username: str, password: str):
         return False
 
     if user.is_verified != True:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Account Not Verified"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Account Not Verified")
     return user
 
 
@@ -129,16 +128,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
-):
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
+                           db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, config["SECRET_KEY"], algorithms=[ALGORITHM])
+        payload = jwt.decode(token,
+                             config["SECRET_KEY"],
+                             algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -155,8 +155,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)]
-):
+        current_user: Annotated[User, Depends(get_current_user)]):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -165,8 +164,9 @@ async def get_current_active_user(
 #### GET MY USER INFO ####
 @router.get("/users/me/", response_model=UserOut)
 async def read_users_me(
-    current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db),
+        current_user: Annotated[UserInDB,
+                                Depends(get_current_active_user)],
+        db: Session = Depends(get_db),
 ):
     return current_user.to_dict()
 
@@ -180,8 +180,9 @@ async def read_users_me(
     response_model=Token,
 )
 async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Session = Depends(get_db),
+        form_data: Annotated[OAuth2PasswordRequestForm,
+                             Depends()],
+        db: Session = Depends(get_db),
 ):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -191,9 +192,8 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user.username},
+                                       expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -216,15 +216,15 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
         await send_verification_email(db_user.email, token)
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=400, detail="Username or Email already registered"
-        )
+        raise HTTPException(status_code=400,
+                            detail="Username or Email already registered")
 
     # Return 200 status code verify email message and user info
     return JSONResponse(
         status_code=200,
         content={
-            "detail": "User registered successfully. Please verify your email.",
+            "detail":
+            "User registered successfully. Please verify your email.",
             "user": db_user.to_dict(),
         },
     )
