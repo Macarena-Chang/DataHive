@@ -1,19 +1,26 @@
-from sqlalchemy import Boolean, Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import UniqueConstraint
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
+
 
 class UserTable(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    full_name =Column(String, unique=False, index=True)
+    full_name = Column(String, unique=False, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     disabled = Column(Boolean, default=False)
     is_verified = Column(Boolean, default=False)
+
     def to_dict(self):
         return {
             "user_id": self.user_id,
@@ -21,8 +28,9 @@ class UserTable(Base):
             "full_name": self.full_name,
             "email": self.email,
             "disabled": self.disabled,
-            "is_verified": self.is_verified
+            "is_verified": self.is_verified,
         }
+
 
 class User(BaseModel):
     username: str
@@ -30,18 +38,19 @@ class User(BaseModel):
     full_name: str
     disabled: bool
 
+
 class UserIn(User):
     password: str
 
+
 class UserOut(User):
     user_id: int
+
 
 class UserInDB(User):
     hashed_password: str
 
 
-from sqlalchemy import ForeignKey
-from sqlalchemy import UniqueConstraint
 class File(Base):
     __tablename__ = "files"
 
@@ -56,4 +65,3 @@ class UserFile(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
     file_id = Column(String, ForeignKey("files.file_id"), unique=True)
-
