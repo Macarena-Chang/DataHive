@@ -29,3 +29,4 @@ CREATE TABLE user_files (
     FOREIGN KEY (user_id) REFERENCES users (user_id),
     FOREIGN KEY (file_id) REFERENCES files (file_id)
 );
+
