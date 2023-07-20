@@ -40,9 +40,7 @@ Frontend Repository can be found [here](https://github.com/Macarena-Chang/DataHi
 
 ## Demo
 
-https://github.com/Macarena-Chang/DataHive/assets/18247410/884d72e4-42ae-44ea-8506-0ce81d3f5a0b
-
-
+https://github.com/Macarena-Chang/DataHive/assets/18247410/e2f67694-1ec3-43bc-876d-957c1944425a
 
 
 ### License
