@@ -32,8 +32,11 @@ from starlette.websockets import WebSocket
 from redis import asyncio as redis
 from chat_utils import limit_chat_history
 
+from user_routes import router as user_router
 
 app = FastAPI()
+
+app.include_router(user_router)
 
 # Configure CORS middleware
 origins = [
@@ -130,19 +133,7 @@ async def delete_file(filename: str):
     message = "File deletion not implemented yet."
     return JSONResponse(content={"message": message}, status_code=200)  # Change status code as per operation result
 
-""" @app.get("/summary", response_class=HTMLResponse, status_code=200)
-def chat(request: Request):
-    return templates.TemplateResponse("summary.html", {"request": request})
-"""
-##### GET SUMMARY ##### 
-""" @app.post("/summary")
-def summary(request: Request, background_tasks: BackgroundTasks, summary_request: SummaryRequest):
-    summary = None
-    if summary_request.text:
-        summary = summarize(summary_request.text)
-        background_tasks.add_task(summarize, summary_request.text)
-    return JSONResponse(content={"summary": summary})
- """
+
 ################################################################
 ### AUTHENTICATION ###
 ################################################################
@@ -157,8 +148,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
     return pwd_context.hash(password)
@@ -166,25 +155,6 @@ def get_password_hash(password):
 def get_user(db: Session, username: str):
     return db.query(UserTable).filter(UserTable.username == username).first()
 
-def authenticate_user(db: Session, username: str, password: str):
-    user = get_user(db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    
-    if user.is_verified != True:raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED,detail= "Account Not Verified")
-    return user
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)], 
@@ -216,31 +186,6 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-##### LOGIN #####
-@app.post("/users/login",dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
-async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Session = Depends(get_db)
-):
-    user = authenticate_user(db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.get("/users/me/", response_model=UserOut)
-async def read_users_me(
-    current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
-):
-    return current_user.to_dict()
 
 #REDIS / LIMITER
 ##### REDIS  connection established when app starts up #####
@@ -272,7 +217,6 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-""" r = redis.from_url(config["REDIS_URL"], encoding="utf8") """
 @app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(websocket, user_id)
@@ -282,74 +226,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             # Get the global Redis connection and use it
             async with get_redis() as r:
                 await r.lpush(f"chat:{user_id}", data)  # Store message in Redis
-            """ r.push(f"chat:{user_id}", data) """  # Store message in Redis
             await manager.send_message(f"Message text was: {data}", user_id)
     except WebSocketDisconnect:
         manager.disconnect(user_id)
         
-##### REGISTER #####
-@app.post("/register", response_model=UserOut)
-async def create_user(user: UserIn, db: Session = Depends(get_db)):
-    hashed_password = get_password_hash(user.password)
-    db_user = UserTable(
-        username=user.username,
-        full_name=user.full_name,
-        email=user.email,
-        hashed_password=hashed_password,
-        disabled=user.disabled
-    )
-    db.add(db_user)
-    try:
-        db.commit()
-        # After commiting the user to the database create a token for the user and send verification email
-        token = create_token({"user_id": db_user.user_id})
-        await send_verification_email(db_user.email, token)
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Username or Email already registered")
-    return db_user.to_dict()
-
-##### VERIFICATION ##### 
-@app.get("/verify")
-def verify_endpoint(token: str, db: Session = Depends(get_db)):
-    try:
-        data = verify_token(token, 86400)  # verify the token
-    except SignatureExpired:
-        raise HTTPException(status_code=400, detail="Token expired")
-    user_id = data["user_id"]
-    user = db.query(UserTable).filter(UserTable.user_id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user.is_verified:
-        raise HTTPException(status_code=400, detail="User already verified")
-    user.is_verified = True
-    db.commit()
-    return {"detail": "User successfully verified"}
 
 
-## SOCIAL LOGIN
-""" from google.oauth2 import id_token
-from google.auth.transport import requests
-@app.get("/auth")
-def authentication(request: Request,token:str):
-    try:
-        # Specify the CLIENT_ID of the app that accesses the backend:
-        user =id_token.verify_oauth2_token(token, requests.Request(), "116988546-2a283t6anvr0.apps.googleusercontent.com")
-
-        request.session['user'] = dict({
-            "email" : user["email"] 
-        })
-        
-        return user['name'] + ' Logged In successfully'
-
-    except ValueError:
-        return "unauthorized"
-
-@app.get('/')
-def check(request:Request):
-    return "hi "+ str(request.session.get('user')['email']) """
-
-#router = APIRouter()
 @app.post("/users/addfile/")
 async def add_file_to_user_endpoint(
     file_id: str,
@@ -367,7 +249,7 @@ async def get_user_files_endpoint(
         raise HTTPException(status_code=401, detail="User is not authenticated")
     return get_user_files(db, current_user.user_id)
 
-# REDIS 
+# REDIS CHAT HISTORY
 async def get_chat_history_redis(user_id: str):
     r = await get_redis()
     history = await r.lrange(f'chat:{user_id}', 0, -1)

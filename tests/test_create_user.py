@@ -8,6 +8,8 @@ from app import app
 from models import Base
 import logging
 from datetime import datetime
+from unittest.mock import AsyncMock
+from email_service import send_verification_email
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
@@ -15,20 +17,16 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 Base.metadata.create_all(bind=engine)
 
-
 client = TestClient(app)
 
-
-    
 def test_create_user():
-    
-    with patch("app.send_verification_email") as mock_send_verification_email:
-        mock_send_verification_email.return_value = None  # Mock the email sending function
+    with patch("user_routes.send_verification_email", new_callable=AsyncMock) as mock_send_verification_email: 
+        mock_send_verification_email.return_value = None 
 
         # unique username and email using timestamp
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        username = f"newuser{timestamp}"
-        email = f"newuser{timestamp}@example.com"
+        username = f"newuser{timestamp}@example.com"
+        email = username
         
         # Test creating new user
         user_data = {
@@ -39,12 +37,17 @@ def test_create_user():
             "disabled": False,
         }
         response = client.post("/register", json=user_data)
-
-        # Test creating new user with missing fields print(response.content)  # Print out the response content
+        
+        #response content
+        logging.info(response.content) 
+        
         assert response.status_code == 200
-        assert response.json()["username"] == username
-        assert response.json()["full_name"] == "New User"
-        assert response.json()["email"] == email
+        
+        # Check response contains correct username,name, email
+        assert response.json()["user"]["username"] == username
+        assert response.json()["user"]["full_name"] == "New User"
+        assert response.json()["user"]["email"] == email
+
         assert "password" not in response.json()  # Ensure --> password isn't returned
         assert mock_send_verification_email.called  # Ensure --> email sending function was called
 
