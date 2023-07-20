@@ -13,8 +13,7 @@ from email_service import send_verification_email
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
-TestingSessionLocal = sessionmaker(
-    autocommit=False, autoflush=False, bind=engine)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,7 +21,9 @@ client = TestClient(app)
 
 
 def test_create_user():
-    with patch("user_routes.send_verification_email", new_callable=AsyncMock) as mock_send_verification_email:
+    with patch(
+        "user_routes.send_verification_email", new_callable=AsyncMock
+    ) as mock_send_verification_email:
         mock_send_verification_email.return_value = None
 
         # unique username and email using timestamp
@@ -57,8 +58,7 @@ def test_create_user():
         # Test duplicate user registration
         response = client.post("/register", json=user_data)
         assert response.status_code == 400
-        assert "Username or Email already registered" in response.json()[
-            "detail"]
+        assert "Username or Email already registered" in response.json()["detail"]
 
 
 def teardown_module(module):

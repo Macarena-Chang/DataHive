@@ -100,7 +100,8 @@ def authenticate_user(db: Session, username: str, password: str):
 
     if user.is_verified != True:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Account Not Verified")
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Account Not Verified"
+        )
     return user
 
 
@@ -116,8 +117,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    db: Session = Depends(get_db)
+    token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -125,8 +125,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(
-            token, config["SECRET_KEY"], algorithms=[ALGORITHM])
+        payload = jwt.decode(token, config["SECRET_KEY"], algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -137,6 +136,7 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
 
 # checks if authenticated user is active (checks disabled attribute)
 
@@ -153,17 +153,22 @@ async def get_current_active_user(
 @router.get("/users/me/", response_model=UserOut)
 async def read_users_me(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     return current_user.to_dict()
+
 
 ##### LOGIN #####
 
 
-@router.post("/users/login", dependencies=[Depends(RateLimiter(times=10, seconds=480))], response_model=Token)
+@router.post(
+    "/users/login",
+    dependencies=[Depends(RateLimiter(times=10, seconds=480))],
+    response_model=Token,
+)
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -188,7 +193,7 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
         full_name=user.full_name,
         email=user.email,
         hashed_password=hashed_password,
-        disabled=user.disabled
+        disabled=user.disabled,
     )
     db.add(db_user)
     try:
@@ -199,10 +204,18 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=400, detail="Username or Email already registered")
+            status_code=400, detail="Username or Email already registered"
+        )
 
     # Return 200 status code verify email message and user info
-    return JSONResponse(status_code=200, content={"detail": "User registered successfully. Please verify your email.", "user": db_user.to_dict()})
+    return JSONResponse(
+        status_code=200,
+        content={
+            "detail": "User registered successfully. Please verify your email.",
+            "user": db_user.to_dict(),
+        },
+    )
+
 
 ##### ACCOUNT EMAIL VERIFICATION #####
 

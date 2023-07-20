@@ -2,9 +2,26 @@ import json
 import os
 import yaml
 from datetime import datetime, timedelta
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    WebSocket,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+)
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -39,10 +56,7 @@ app = FastAPI()
 app.include_router(user_router)
 
 # Configure CORS middleware
-origins = [
-    "http://localhost:3000",
-    "localhost:3000"
-]
+origins = ["http://localhost:3000", "localhost:3000"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,8 +125,8 @@ async def upload_files(files: List[UploadFile] = File(...)):
     file_paths = []
     for uploaded_file in files:
         filename = uploaded_file.filename
-        file_path = os.path.join('uploads', filename)
-        with open(file_path, 'wb') as f:
+        file_path = os.path.join("uploads", filename)
+        with open(file_path, "wb") as f:
             content = await uploaded_file.read()
             f.write(content)
         file_paths.append(file_path)
@@ -120,6 +134,8 @@ async def upload_files(files: List[UploadFile] = File(...)):
         ingest_files(file_paths)
         message = "File uploaded and ingested successfully."
     return {"message": message}
+
+
 ##### SEARCH (Outside chat) #####
 """ @app.post("/search")
 def search(request: Request, search_query: SearchQuery):
@@ -139,6 +155,7 @@ async def get_file_names():
     file_names = list(file_data.keys())
     print(file_names)
     return JSONResponse(content=file_names)
+
 
 ##### DELETE FILE #####
 
@@ -174,8 +191,7 @@ def get_user(db: Session, username: str):
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    db: Session = Depends(get_db)
+    token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -183,8 +199,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(
-            token, config["SECRET_KEY"], algorithms=[ALGORITHM])
+        payload = jwt.decode(token, config["SECRET_KEY"], algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -195,6 +210,7 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
 
 # checks if authenticated user is active (checks disabled attribute)
 
@@ -260,7 +276,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
 async def add_file_to_user_endpoint(
     file_id: str,
     current_user: Annotated[UserInDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     return add_file_to_user(db, current_user.user_id, file_id)
 
@@ -268,50 +284,55 @@ async def add_file_to_user_endpoint(
 @app.get("/users/me/files/")
 async def get_user_files_endpoint(
     current_user: Annotated[UserInDB, Depends(get_current_active_user)] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     if not current_user:
-        raise HTTPException(
-            status_code=401, detail="User is not authenticated")
+        raise HTTPException(status_code=401, detail="User is not authenticated")
     return get_user_files(db, current_user.user_id)
+
 
 # REDIS CHAT HISTORY
 
 
 async def get_chat_history_redis(user_id: str):
     r = await get_redis()
-    history = await r.lrange(f'chat:{user_id}', 0, -1)
+    history = await r.lrange(f"chat:{user_id}", 0, -1)
     if history is None:
         return []
     print(history)
-    return [message.decode('utf-8') for message in history]
+    return [message.decode("utf-8") for message in history]
 
 
 @app.post("/users/me/chat/responses")
-async def chat_ask(chat_input: ChatInput, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def chat_ask(
+    chat_input: ChatInput,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     try:
         user_id = current_user.user_id
         print(user_id)
         r = await get_redis()
         # Fetch chat history
-        chat_history_redis = await r.lrange(f'chat:{user_id}', 0, -1)
+        chat_history_redis = await r.lrange(f"chat:{user_id}", 0, -1)
 
-        chat_history_redis = [json.loads(message.decode(
-            'utf-8')) for message in chat_history_redis]
+        chat_history_redis = [
+            json.loads(message.decode("utf-8")) for message in chat_history_redis
+        ]
         # Generate response from language model
         response = chat_ask_question(
-            chat_input.user_input, chat_history_redis, chat_input.file_name)
+            chat_input.user_input, chat_history_redis, chat_input.file_name
+        )
 
         # Limit chat history to a certain number of tokens
         chat_history_redis = await limit_chat_history(chat_history_redis, response)
 
         # Store bot's response in Redis
         response_str = json.dumps({"user": "bot", "message": response})
-        await r.rpush(f'chat:{user_id}', response_str)
+        await r.rpush(f"chat:{user_id}", response_str)
 
         return {"response": response}
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail="Unable to process the request.")
+        raise HTTPException(status_code=500, detail="Unable to process the request.")

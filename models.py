@@ -25,7 +25,7 @@ class UserTable(Base):
             "full_name": self.full_name,
             "email": self.email,
             "disabled": self.disabled,
-            "is_verified": self.is_verified
+            "is_verified": self.is_verified,
         }
 
 

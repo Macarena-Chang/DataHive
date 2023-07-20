@@ -21,6 +21,6 @@ async def send_verification_email(email: str, token: str):
         subject="Please verify your email",
         recipients=[email],
         body=f"Please click the link to verify your email: {verification_link}",
-        subtype="plain"
+        subtype="plain",
     )
     await fm.send_message(message)

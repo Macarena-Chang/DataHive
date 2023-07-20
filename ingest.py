@@ -15,6 +15,7 @@ from nltk.tokenize import TextTilingTokenizer
 from pdfminer.high_level import extract_text
 from typing import List
 from doc_utils import update_filenames_json
+
 # from dotenv import dotenv_values
 # nltk.download("stopwords")
 # nltk.download("punkt")
@@ -49,18 +50,18 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
         pseudo_sentences = nltk.sent_tokenize(text, language="english")
 
         # Concatenate pseudo sentences
-        concatenated_pseudo_sentences = ' '.join(pseudo_sentences)
+        concatenated_pseudo_sentences = " ".join(pseudo_sentences)
 
         # Apply text tiling on concatenated pseudo sentences
         chunks = ttt.tokenize(concatenated_pseudo_sentences)
 
         # remove double new lines from chunks
-        chunks = [chunk.lstrip('\n\n') for chunk in chunks]
+        chunks = [chunk.lstrip("\n\n") for chunk in chunks]
 
         if len(chunks) <= 1:
             raise ValueError("Too few chunks")
 
-      # Split chunks that exceed the maximum character limit
+        # Split chunks that exceed the maximum character limit
         i = 0
         while i < len(chunks):
             chunk = chunks[i]
@@ -68,7 +69,9 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
                 # split the chunk into smaller subchunks
                 num_subchunks = (len(chunk) // max_chars) + 1
                 subchunks = [
-                    chunk[j * max_chars:(j + 1) * max_chars] for j in range(num_subchunks)]
+                    chunk[j * max_chars : (j + 1) * max_chars]
+                    for j in range(num_subchunks)
+                ]
                 chunks.pop(i)
                 for subchunk in reversed(subchunks):
                     chunks.insert(i, subchunk)
@@ -79,7 +82,8 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
 
         # Fallback to RecursiveCharacterTextSplitter
         char_text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200)
+            chunk_size=1000, chunk_overlap=200
+        )
         chunks = char_text_splitter.split_text(text)
         print("RecursiveCharacterTextSplitter")
         print(chunks)
@@ -89,21 +93,25 @@ def split_text_data(text: str, max_chars: int = 3200) -> list:
 def generate_embeddings(chunks: list) -> list:
     embeddings = []
     for chunk in chunks:
-        response = openai.Embedding.create(
-            input=chunk, model="text-embedding-ada-002")
+        response = openai.Embedding.create(input=chunk, model="text-embedding-ada-002")
         embeddings.append(response["data"][0]["embedding"])
     return embeddings
 
 
-def store_embeddings(chunks: list, embeddings: list, file_unique_id: str, pinecone_store, file_name) -> dict:
+def store_embeddings(
+    chunks: list, embeddings: list, file_unique_id: str, pinecone_store, file_name
+) -> dict:
     id_to_text_mapping = {}
     for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
         chunk_unique_id = f"{file_unique_id}_{idx}"
-        metadata = {'chunk': idx, 'text': chunk,
-                    'file_id': file_unique_id, 'file_name': file_name}
+        metadata = {
+            "chunk": idx,
+            "text": chunk,
+            "file_id": file_unique_id,
+            "file_name": file_name,
+        }
         id_to_text_mapping[chunk_unique_id] = metadata
-        pinecone_store.upsert(vectors=zip(
-            [chunk_unique_id], [embedding], [metadata]))
+        pinecone_store.upsert(vectors=zip([chunk_unique_id], [embedding], [metadata]))
     return id_to_text_mapping
 
 
@@ -111,7 +119,8 @@ def save_mapping_to_file(mapping: dict, file_name: str):
     with open(file_name, "w") as outfile:
         json.dump(mapping, outfile)
 
- # Extract text using pdfminer six
+
+# Extract text using pdfminer six
 
 
 def extract_text_from_pdf(file_path: str) -> str:
@@ -122,23 +131,37 @@ def extract_text_from_pdf(file_path: str) -> str:
 # .docx file is a ZIP archive containing multiple files. Opening it as a ZIP allows us to access the xml file that contains the  text
 def extract_text_from_docx(file_path: str) -> str:
     # Open the .docx file as a ZIP archive
-    with zipfile.ZipFile(file_path, 'r') as z:
+    with zipfile.ZipFile(file_path, "r") as z:
         # Extract the 'word/document.xml' file
-        xml_content = z.read('word/document.xml').decode()
+        xml_content = z.read("word/document.xml").decode()
 
         # Parse the XML content
         tree = ET.fromstring(xml_content)
 
         # Find all paragraph elements
         paragraphs = tree.findall(
-            './/w:p', namespaces={'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'})
+            ".//w:p",
+            namespaces={
+                "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            },
+        )
 
         # Extract the text from the 'w:t' elements within each paragraph and join them with newline characters
-        text = '\n\n'.join(''.join(node.text for node in para.findall(
-            './/w:t', namespaces={'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'})) for para in paragraphs)
+        text = "\n\n".join(
+            "".join(
+                node.text
+                for node in para.findall(
+                    ".//w:t",
+                    namespaces={
+                        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+                    },
+                )
+            )
+            for para in paragraphs
+        )
 
         # Replace carriage returns and line feeds with newline characters
-        text = re.sub(r'\r|\f', '\n', text)
+        text = re.sub(r"\r|\f", "\n", text)
 
     return text
 
@@ -152,13 +175,13 @@ def ingest_files(file_paths: List[str]):
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
     text_extraction_functions = {
-        'pdf': extract_text_from_pdf,
-        'docx': extract_text_from_docx,
+        "pdf": extract_text_from_pdf,
+        "docx": extract_text_from_docx,
         # 'doc': extract_text_from_doc,
-        'txt': lambda path: open(path, 'r').read()
+        "txt": lambda path: open(path, "r").read(),
     }
     for file_path in file_paths:
-        file_extension = file_path.lower().split('.')[-1]
+        file_extension = file_path.lower().split(".")[-1]
         file_content = text_extraction_functions.get(file_extension)(file_path)
 
         text = file_content
@@ -176,7 +199,8 @@ def ingest_files(file_paths: List[str]):
         embeddings = generate_embeddings(chunks)
 
         id_to_text_mapping = store_embeddings(
-            chunks, embeddings, file_unique_id, pinecone_store, file_name)
+            chunks, embeddings, file_unique_id, pinecone_store, file_name
+        )
 
         save_mapping_to_file(id_to_text_mapping, f"{file_unique_id}.json")
     return {"message": "File processed successfully.", "file_unique_id": file_unique_id}
