@@ -28,7 +28,7 @@ def get_user(db: Session, username: str):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Username or Email already registered") 
+        raise HTTPException(status_code=400, detail="Username or Email already registered")
     return db_user.to_dict() """
 
 

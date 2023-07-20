@@ -62,11 +62,11 @@ chain = load_qa_chain(
         ],
         template="""You are a chatbot who acts like {persona}, having a conversation with a student.
 
-Given the following extracted parts of a long document answer the question in the tone {tone}. 
+Given the following extracted parts of a long document answer the question in the tone {tone}.
 If you don't know the answer, just say that you don't know. Don't try to make up an answer.
 ALWAYS return a "FILENAMES" part only at the end of your answer with the {filenames}.
 
-Extracted parts: {text_list}. 
+Extracted parts: {text_list}.
 APPLY NLP TECHNIQUES FOR A WELL FORMATTED ANSWER
 
 
