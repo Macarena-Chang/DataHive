@@ -1,11 +1,11 @@
 # from dotenv import dotenv_values
 import logging
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import openai
 import pinecone
 import yaml
-# config = dotenv_values(".env")
 from fastapi import HTTPException
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
@@ -13,10 +13,13 @@ from langchain.llms import OpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 
-from doc_utils import fetchTopK, search_documents_by_file_name
+from doc_utils import fetchTopK
+from doc_utils import search_documents_by_file_name
+from retrieve import get_embedding
+from retrieve import query_pinecone
+# config = dotenv_values(".env")
 # from flask import jsonify, make_response
 # from flask import request
-from retrieve import get_embedding, query_pinecone
 
 
 def load_config(file_path: str) -> dict:

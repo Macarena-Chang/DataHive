@@ -1,22 +1,39 @@
 import json
 import os
-from datetime import datetime, timedelta
-from typing import Annotated, Dict, List, Optional
+from datetime import datetime
+from datetime import timedelta
+from typing import Annotated
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import yaml
-from fastapi import (APIRouter, BackgroundTasks, Depends, FastAPI, File, Form,
-                     HTTPException, Request, UploadFile, WebSocket,
-                     WebSocketDisconnect, status)
+from fastapi import APIRouter
+from fastapi import BackgroundTasks
+from fastapi import Depends
+from fastapi import FastAPI
+from fastapi import File
+from fastapi import Form
+from fastapi import HTTPException
+from fastapi import Request
+from fastapi import status
+from fastapi import UploadFile
+from fastapi import WebSocket
+from fastapi import WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
-                               PlainTextResponse)
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
+from fastapi.responses import PlainTextResponse
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from itsdangerous import SignatureExpired
-from jose import JWTError, jwt
+from jose import jwt
+from jose import JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from redis import asyncio as redis
@@ -28,13 +45,20 @@ from starlette.websockets import WebSocket as StarletteWebSocket
 from chat_utils import limit_chat_history
 from chat_with_data import chat_ask_question
 from database import SessionLocal
-from db import add_file_to_user, get_user_files
+from db import add_file_to_user
+from db import get_user_files
 from email_service import send_verification_email
 from ingest import ingest_files
-from models import User, UserFile, UserIn, UserInDB, UserOut, UserTable
+from models import User
+from models import UserFile
+from models import UserIn
+from models import UserInDB
+from models import UserOut
+from models import UserTable
 from retrieve import search_and_chat
 from summary import summarize
-from token_service import create_token, verify_token
+from token_service import create_token
+from token_service import verify_token
 from user_routes import router as user_router
 
 app = FastAPI()

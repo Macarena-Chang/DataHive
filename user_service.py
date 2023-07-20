@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 
 from email_service import send_verification_email
 from models import UserIn
-from token_service import create_token, verify_token
+from token_service import create_token
+from token_service import verify_token
 
 
 def register_user(user: UserIn, db: Session):

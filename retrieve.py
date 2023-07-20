@@ -1,10 +1,10 @@
 from functools import lru_cache
 
-# from dotenv import dotenv_values
 import openai
 import pinecone
 import yaml
 from langchain.llms import OpenAI
+# from dotenv import dotenv_values
 
 # config = dotenv_values(".env")
 
