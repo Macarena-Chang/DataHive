@@ -40,3 +40,5 @@ Frontend Repository can be found [here](https://github.com/Macarena-Chang/DataHi
 
 ## Demo
 
+### License
+This project is licensed under the terms of the MIT license.
