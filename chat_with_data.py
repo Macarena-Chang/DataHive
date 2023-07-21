@@ -17,6 +17,7 @@ from doc_utils import fetchTopK
 from doc_utils import search_documents_by_file_name
 from retrieve import get_embedding
 from retrieve import query_pinecone
+
 # config = dotenv_values(".env")
 # from flask import jsonify, make_response
 # from flask import request
