@@ -29,6 +29,9 @@ from models import UserOut
 from models import UserTable
 from token_service import create_token
 from token_service import verify_token
+from fastapi import APIRouter
+from models import TokenBlacklist
+import uuid
 
 router = APIRouter()
 
@@ -123,7 +126,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())}) 
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 

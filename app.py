@@ -8,62 +8,35 @@ from typing import List
 from typing import Optional
 
 import yaml
-from fastapi import APIRouter
-from fastapi import BackgroundTasks
-from fastapi import Depends
-from fastapi import FastAPI
-from fastapi import File
-from fastapi import Form
-from fastapi import HTTPException
-from fastapi import Request
-from fastapi import status
-from fastapi import UploadFile
-from fastapi import WebSocket
-from fastapi import WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
-from fastapi.responses import PlainTextResponse
 from fastapi.security import OAuth2PasswordBearer
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
-from itsdangerous import SignatureExpired
-from jose import jwt
-from jose import JWTError
+from ingest import ingest_files
+from jose import JWTError, jwt
+from models import User, UserTable, UserInDB
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from redis import asyncio as redis
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from starlette.websockets import WebSocket
-from starlette.websockets import WebSocket as StarletteWebSocket
-
-from chat_utils import limit_chat_history
-from chat_with_data import chat_ask_question
+from typing import Annotated, Dict, List, Optional
 from database import SessionLocal
-from db import add_file_to_user
-from db import get_user_files
-from email_service import send_verification_email
-from ingest import ingest_files
-from models import User
-from models import UserFile
-from models import UserIn
-from models import UserInDB
-from models import UserOut
-from models import UserTable
-from retrieve import search_and_chat
-from summary import summarize
-from token_service import create_token
-from token_service import verify_token
+from chat_with_data import chat_ask_question
+from db import add_file_to_user, get_user_files
+from fastapi import WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocket
+from redis import asyncio as redis
+from chat_utils import limit_chat_history
+
 from user_routes import router as user_router
 
 app = FastAPI()
 
 app.include_router(user_router)
+
+# TODO finish refactor -> create file_router
 
 # Configure CORS middleware
 origins = ["http://localhost:3000", "localhost:3000"]
@@ -93,8 +66,9 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
+# Declare redis_connection as a global variable
+redis_connection = None
+# TODO delete Jinja2 templates
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -146,17 +120,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     return {"message": message}
 
 
-##### SEARCH (Outside chat) #####
-""" @app.post("/search")
-def search(request: Request, search_query: SearchQuery):
-    results = []
-    if search_query.search_query:
-        results = search_and_chat(search_query.search_query)
-    return {"results": results}
- """
 ##### Get filenames (to populate dropdown) #####
-
-
 @app.get("/files")
 async def get_file_names():
     with open("filenames.json", "r") as file:
@@ -177,9 +141,6 @@ async def delete_file(filename: str):
     return JSONResponse(content={"message": message}, status_code=200)
 
 
-################################################################
-### AUTHENTICATION ###
-################################################################
 
 # to get string like this run:
 # openssl rand -hex 32
@@ -350,5 +311,21 @@ async def chat_ask(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail="Unable to process the request.")
+        raise HTTPException(status_code=500, detail="Unable to process the request.")
+
+
+from models import TokenBlacklist
+#### LOGOUT ####
+@app.post("/users/logout")
+async def logout(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+        if jti is None or exp is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        blacklist = TokenBlacklist(redis_connection)
+        blacklist.add(jti, exp)
+        return {"detail": "Successfully logged out"}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
