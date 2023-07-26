@@ -1,3 +1,5 @@
+import logging
+from models import TokenBlacklist
 import json
 import os
 from datetime import datetime
@@ -8,7 +10,7 @@ from typing import List
 from typing import Optional
 
 import yaml
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, status
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, WebSocket, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -29,7 +31,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocket
 from redis import asyncio as redis
 from chat_utils import limit_chat_history
-
+from user_routes import get_db, get_current_active_user, get_current_user
 from user_routes import router as user_router
 
 app = FastAPI()
@@ -50,8 +52,6 @@ app.add_middleware(
 )
 
 # Load configuration from YAML file
-
-
 def load_config(file_path: str) -> dict:
     with open(file_path, "r") as config_file:
         return yaml.safe_load(config_file)
@@ -59,22 +59,13 @@ def load_config(file_path: str) -> dict:
 
 config = load_config("config.yaml")
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 # Declare redis_connection as a global variable
 redis_connection = None
 # TODO delete Jinja2 templates
 # Mount static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
+""" app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
-# Define input models for endpoints
-
+ """
 
 class ChatInput(BaseModel):
     user_input: str
@@ -132,8 +123,6 @@ async def get_file_names():
 
 
 ##### DELETE FILE #####
-
-
 @app.post("/files/delete/{filename}")
 async def delete_file(filename: str):
     message = "File deletion not implemented yet."
@@ -141,12 +130,11 @@ async def delete_file(filename: str):
     return JSONResponse(content={"message": message}, status_code=200)
 
 
-
 # to get string like this run:
 # openssl rand -hex 32
 SECRET_KEY = config["SECRET_KEY"]
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ALGORITHM = config["ALGORITHM"]
+ACCESS_TOKEN_EXPIRE_MINUTES = config["ACCESS_TOKEN_EXPIRE_MINUTES"]
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -157,50 +145,19 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user(db: Session, username: str):
-    return db.query(UserTable).filter(UserTable.username == username).first()
-
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
-                           db: Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token,
-                             config["SECRET_KEY"],
-                             algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-    user = get_user(db, username=token_data.username)
-    if user is None:
-        raise credentials_exception
-    return user
-
-
-# checks if authenticated user is active (checks disabled attribute)
-
-
-async def get_current_active_user(
-        current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
+def get_token_blacklist(request: Request):
+    return request.app.state.token_blacklist
 
 
 # REDIS / LIMITER
-##### REDIS  connection established when app starts up #####
+# REDIS  connection established when app starts up #
 @app.on_event("startup")
 async def startup():
     global redis_connection
     redis_connection = await redis.from_url("redis://localhost")
     await FastAPILimiter.init(redis_connection)
+    token_blacklist = TokenBlacklist(redis_connection)
+    app.state.token_blacklist = token_blacklist
 
 
 async def get_redis():
@@ -267,8 +224,6 @@ async def get_user_files_endpoint(
 
 
 # REDIS CHAT HISTORY
-
-
 async def get_chat_history_redis(user_id: str):
     r = await get_redis()
     history = await r.lrange(f"chat:{user_id}", 0, -1)
@@ -311,11 +266,12 @@ async def chat_ask(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Unable to process the request.")
+        raise HTTPException(
+            status_code=500, detail="Unable to process the request.")
 
 
-from models import TokenBlacklist
 #### LOGOUT ####
+# add token to blacklist
 @app.post("/users/logout")
 async def logout(token: str = Depends(oauth2_scheme)):
     try:
@@ -324,8 +280,9 @@ async def logout(token: str = Depends(oauth2_scheme)):
         exp = payload.get("exp")
         if jti is None or exp is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        blacklist = TokenBlacklist(redis_connection)
-        blacklist.add(jti, exp)
-        return {"detail": "Successfully logged out"}
+        token_blacklist = TokenBlacklist(redis_connection)
+        await token_blacklist.add(jti, exp)
+        logging.info(f"Added token {jti} to blacklist")
+        return JSONResponse(content={"message": "Successfully logged out"}, status_code=200)
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")

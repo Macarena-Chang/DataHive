@@ -2,9 +2,8 @@ from datetime import datetime
 from datetime import timedelta
 from typing import Annotated
 from typing import Optional
-
 import yaml
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
@@ -22,20 +21,13 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from email_service import send_verification_email
-from models import User
-from models import UserIn
-from models import UserInDB
-from models import UserOut
-from models import UserTable
-from token_service import create_token
-from token_service import verify_token
+from models import User, UserIn, UserInDB, UserOut, UserTable
+from token_service import create_token, verify_token
 from fastapi import APIRouter
 from models import TokenBlacklist
 import uuid
 
 router = APIRouter()
-
-# User-Routes
 
 # Load configuration from YAML file
 
@@ -47,9 +39,8 @@ def load_config(file_path: str) -> dict:
 
 config = load_config("config.yaml")
 
-# Define input models for endpoints
 
-
+# models
 class ChatInput(BaseModel):
     user_input: str
     file_name: Optional[str] = None
@@ -88,8 +79,8 @@ def get_db():
 # to get string like this run:
 # openssl rand -hex 32
 SECRET_KEY = config["SECRET_KEY"]
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ALGORITHM = config["ALGORITHM"]
+ACCESS_TOKEN_EXPIRE_MINUTES = config["ACCESS_TOKEN_EXPIRE_MINUTES"]
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
@@ -113,7 +104,6 @@ def authenticate_user(db: Session, username: str, password: str):
         return False
     if not verify_password(password, user.hashed_password):
         return False
-
     if user.is_verified != True:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Account Not Verified")
@@ -126,12 +116,16 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())}) 
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
+def get_token_blacklist(request: Request):
+    return request.app.state.token_blacklist
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], token_blacklist: TokenBlacklist = Depends(get_token_blacklist),
                            db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -139,9 +133,13 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token,
-                             config["SECRET_KEY"],
-                             algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        if jti is None:
+            raise credentials_exception
+        # token_blacklist = TokenBlacklist()
+        if await token_blacklist.is_blacklisted(jti):
+            raise credentials_exception
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -153,14 +151,11 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
         raise credentials_exception
     return user
 
-
 # checks if authenticated user is active (checks disabled attribute)
-
-
-async def get_current_active_user(
+def get_current_active_user(
         current_user: Annotated[User, Depends(get_current_user)]):
     if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise HTTPException(status_code=403, detail="Inactive user")
     return current_user
 
 
@@ -173,10 +168,7 @@ async def read_users_me(
 ):
     return current_user.to_dict()
 
-
-##### LOGIN #####
-
-
+ # LOGIN #####
 @router.post(
     "/users/login",
     dependencies=[Depends(RateLimiter(times=10, seconds=480))],
@@ -194,6 +186,9 @@ async def login(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if user.disabled:
+        raise HTTPException(
+            status_code=403, detail="Inactive user - User Disabled")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.username},
                                        expires_delta=access_token_expires)
@@ -234,8 +229,6 @@ async def create_user(user: UserIn, db: Session = Depends(get_db)):
 
 
 ##### ACCOUNT EMAIL VERIFICATION #####
-
-
 @router.get("/verify")
 def verify(token: str, db: Session = Depends(get_db)):
     try:
