@@ -1,3 +1,4 @@
+import redis
 from pydantic import BaseModel
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -56,7 +57,6 @@ class File(Base):
 
     file_id = Column(Integer, primary_key=True, index=True)
     file_name = Column(String, unique=True, index=True)
-    # Add other if neccesary
 
 
 class UserFile(Base):
@@ -65,3 +65,19 @@ class UserFile(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
     file_id = Column(String, ForeignKey("files.file_id"), unique=True)
+
+
+# Model for blacklist tokens
+
+
+class TokenBlacklist:
+    def __init__(self, redis_connection):
+        self.token_blacklist = redis_connection
+
+    async def add(self, jti, exp):
+        # Use blacklist_ + unique id of JWT
+        await self.token_blacklist.setex(f"blacklist_{jti}", exp, "true")
+
+    async def is_blacklisted(self, jti):
+        result = await self.token_blacklist.exists(f"blacklist_{jti}")
+        return result

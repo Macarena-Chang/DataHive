@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock
+import logging
+from unittest.mock import AsyncMock, MagicMock
 from unittest.mock import patch
 
 import pytest
@@ -21,7 +22,7 @@ TestingSessionLocal = sessionmaker(autocommit=False,
 
 Base.metadata.create_all(bind=engine)
 
-# URL Redis server
+# URL Redis server (using real redis service)
 REDIS_URL = "redis://localhost:6380"
 
 client = TestClient(app)
@@ -43,8 +44,8 @@ def setup_module(module):
 def test_login():
     # Test successful login
     user_credentials = {
-        "username": "@mail.com",
-        "password": "",
+        "username": "macarena@mail.com",
+        "password": "secret",
     }
     response = client.post("/users/login", data=user_credentials)
     assert response.status_code == 200
@@ -68,3 +69,43 @@ def test_login():
     response = client.post("/users/login", data=user_credentials)
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
+
+
+def test_logout():
+    # Setup: Initialize app.state.token_blacklist with a mock
+    app.state.token_blacklist = AsyncMock()
+
+    # First, log in to get a token
+    user_credentials = {
+        "username": "macarena@mail.com",
+        "password": "secret",
+    }
+    response = client.post("/users/login", data=user_credentials)
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    logging.info(f"Logged in, received token: {token}")
+
+    # Mock Redis connection and TokenBlacklist methods
+    with patch("redis.from_url", return_value=MagicMock()), \
+            patch("models.TokenBlacklist.add", return_value=None), \
+            patch("models.TokenBlacklist.is_blacklisted", new_callable=AsyncMock, return_value=False), \
+            patch("redis.Redis.setex", return_value=None):
+
+        # Then, use the token to log out
+        response = client.post("/users/logout",
+                               headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully logged out"}
+    logging.info("Logged out, token blacklisted")
+
+    # Mock TokenBlacklist.is_blacklisted to return True
+    with patch("models.TokenBlacklist.is_blacklisted", new_callable=AsyncMock, return_value=True):
+        # Try to access a protected endpoint with the blacklisted token
+        response = client.get("/users/me/",
+                              headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 401
+    logging.info("Access with blacklisted token denied")
+    # Teardown: Clean up the dependency override after the test
+    app.dependency_overrides = {}

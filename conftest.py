@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import app
-
+from chat.websocket_manager import handle_websocket
 
 @pytest.fixture(scope="module")
 def client():
