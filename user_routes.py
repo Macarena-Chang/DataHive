@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Annotated
 from typing import Optional
 import yaml
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
@@ -26,7 +26,10 @@ from token_service import create_token, verify_token
 from fastapi import APIRouter
 from models import TokenBlacklist
 import uuid
-
+import json 
+from redis_config import get_redis, get_token_blacklist
+from chat.chat_utils import limit_chat_history
+from chat.chat_with_data import chat_ask_question
 router = APIRouter()
 
 # Load configuration from YAML file
@@ -120,11 +123,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
-def get_token_blacklist(request: Request):
-    return request.app.state.token_blacklist
-
-
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], token_blacklist: TokenBlacklist = Depends(get_token_blacklist),
                            db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -158,7 +156,7 @@ def get_current_active_user(
         raise HTTPException(status_code=403, detail="Inactive user")
     return current_user
 
-
+from db import add_file_to_user, get_user_files
 #### GET MY USER INFO ####
 @router.get("/users/me/", response_model=UserOut)
 async def read_users_me(
@@ -168,7 +166,7 @@ async def read_users_me(
 ):
     return current_user.to_dict()
 
- # LOGIN #####
+# LOGIN #####
 @router.post(
     "/users/login",
     dependencies=[Depends(RateLimiter(times=10, seconds=480))],
@@ -244,3 +242,93 @@ def verify(token: str, db: Session = Depends(get_db)):
     user.is_verified = True
     db.commit()
     return {"detail": "User successfully verified"}
+
+from fastapi import Depends
+from models import TokenBlacklist
+from sqlalchemy.orm import Session
+import logging
+
+#### LOGOUT ####
+@router.post("/users/logout")
+async def logout(token: str = Depends(oauth2_scheme)):
+    try:
+        redis_connection = await get_redis()
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+        if jti is None or exp is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        token_blacklist = TokenBlacklist(redis_connection)
+        await token_blacklist.add(jti, exp)
+        logging.info(f"Added token {jti} to blacklist")
+        return JSONResponse(content={"message": "Successfully logged out"}, status_code=200)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@router.get("/files")
+async def get_file_names():
+    with open("filenames.json", "r") as file:
+        file_data = json.load(file)
+    print("Filenames")
+    file_names = list(file_data.keys())
+    print(file_names)
+    return JSONResponse(content=file_names)
+
+@router.post("/users/addfile/")
+async def add_file_to_user_endpoint(
+        file_id: str,
+        current_user: Annotated[UserInDB,
+                                Depends(get_current_active_user)],
+        db: Session = Depends(get_db),
+):
+    return add_file_to_user(db, current_user.user_id, file_id)
+
+
+@router.get("/users/me/files/")
+async def get_user_files_endpoint(
+        current_user: Annotated[UserInDB,
+                                Depends(get_current_active_user)] = None,
+        db: Session = Depends(get_db),
+):
+    if not current_user:
+        raise HTTPException(status_code=401,
+                            detail="User is not authenticated")
+    return get_user_files(db, current_user.user_id)
+
+@router.post("/users/me/chat/responses")
+async def chat_ask(
+        chat_input: ChatInput,
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+       
+):
+    try:
+        user_id = current_user.user_id
+        print(user_id)
+        r = await get_redis()
+        # Fetch chat history
+        chat_history_redis = await r.lrange(f"chat:{user_id}", 0, -1)
+
+        chat_history_redis = [
+            json.loads(message.decode("utf-8"))
+            for message in chat_history_redis
+        ]
+        # Generate response from language model
+        response = chat_ask_question(chat_input.user_input, chat_history_redis,
+                                     chat_input.file_name)
+
+        # Limit chat history to a certain number of tokens
+        chat_history_redis = await limit_chat_history(chat_history_redis,
+                                                      response)
+
+        # Store bot's response in Redis
+        response_str = json.dumps({"user": "bot", "message": response})
+        await r.rpush(f"chat:{user_id}", response_str)
+
+        return {"response": response}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail="Unable to process the request.")

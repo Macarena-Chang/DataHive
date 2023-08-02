@@ -11,7 +11,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app import app
-from app import get_token_blacklist
 from models import Base
 from models import UserTable
 

@@ -1,3 +1,4 @@
+import redis
 from pydantic import BaseModel
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -51,14 +52,12 @@ class UserInDB(User):
     hashed_password: str
 
 
-from sqlalchemy import ForeignKey
-from sqlalchemy import UniqueConstraint
-""" class File(Base):
+class File(Base):
     __tablename__ = "files"
 
     file_id = Column(Integer, primary_key=True, index=True)
     file_name = Column(String, unique=True, index=True)
- """
+
 
 class UserFile(Base):
     __tablename__ = "user_files"
@@ -69,15 +68,16 @@ class UserFile(Base):
 
 
 # Model for blacklist tokens
-import redis
+
 
 class TokenBlacklist:
     def __init__(self, redis_connection):
         self.token_blacklist = redis_connection
+
     async def add(self, jti, exp):
-        await self.token_blacklist.setex(f"blacklist_{jti}", exp, "true") # Use blacklist_ + unique id of JWT
+        # Use blacklist_ + unique id of JWT
+        await self.token_blacklist.setex(f"blacklist_{jti}", exp, "true")
 
     async def is_blacklisted(self, jti):
         result = await self.token_blacklist.exists(f"blacklist_{jti}")
         return result
-    

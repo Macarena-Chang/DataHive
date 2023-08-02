@@ -5,6 +5,7 @@ from langchain.callbacks import get_openai_callback
 from langchain.llms import OpenAI
 
 from config import load_config
+from redis_config import get_redis
 
 # === CONFIG ===#
 config = load_config("config.yaml")
@@ -34,3 +35,13 @@ async def limit_chat_history(chat_history, new_response, token_limit=2500):
         total_tokens = cb.total_tokens
 
     return chat_history
+
+
+# REDIS CHAT HISTORY
+async def get_chat_history_redis(user_id: str):
+    r = await get_redis()
+    history = await r.lrange(f"chat:{user_id}", 0, -1)
+    if history is None:
+        return []
+    print(history)
+    return [message.decode("utf-8") for message in history]
